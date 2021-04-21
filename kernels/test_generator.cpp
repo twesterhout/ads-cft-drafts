@@ -1,4 +1,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include "DDg_dd_ref.h"
+#include "DGamma_dUdd_ref.h"
+#include "Dg_UU_ref.h"
 #include "Dg_dd_ref.h"
 #include "Gamma_Udd_ref.h"
 #include "g_UU_ref.h"
@@ -87,7 +90,8 @@ template <class Function> auto test_ref_function(char const* basename, Function 
 TEST_CASE("testing g_dd_ref function") { test_ref_function("test/g_dd_ref", g_dd_ref); }
 TEST_CASE("testing g_UU_ref function") { test_ref_function("test/g_UU_ref", g_UU_ref); }
 TEST_CASE("testing Dg_dd_ref function") { test_ref_function("test/Dg_dd_ref", Dg_dd_ref); }
-
+TEST_CASE("testing Dg_UU_ref function") { test_ref_function("test/Dg_UU_ref", Dg_UU_ref); }
+TEST_CASE("testing DDg_dd_ref function") { test_ref_function("test/DDg_dd_ref", DDg_dd_ref); }
 TEST_CASE("testing Gamma_Udd_ref function") {
     for (auto test_case = 1; test_case <= 1; ++test_case) {
         auto const& [input, output] = obtain_filenames("test/Gamma_Udd_ref", test_case);
@@ -100,6 +104,29 @@ TEST_CASE("testing Gamma_Udd_ref function") {
             for (auto j = 0; j < 4; ++j) {
                 for (auto k = 0; k < 4; ++k) {
                     REQUIRE(predicted(i, j, k) == doctest::Approx(expected(i, j, k)));
+                }
+            }
+        }
+    }
+}
+TEST_CASE("testing DGamma_dUdd_ref function") {
+    for (auto test_case = 1; test_case <= 3; ++test_case) {
+        auto const& [input, output] = obtain_filenames("test/DGamma_dUdd_ref", test_case);
+        auto const [L, mu, z] = read_input_ref(input.c_str());
+        auto const expected = load_4x4x4(output.c_str());
+
+        Buffer<double> predicted{4, 4, 4, 4};
+        DGamma_dUdd_ref(z, L, mu, predicted);
+        for (auto i = 0; i < 4; ++i) {
+            for (auto j = 0; j < 4; ++j) {
+                for (auto k = 0; k < 4; ++k) {
+                    for (auto l = 0; l < 4; ++l) {
+                        if (i == 3) {
+                            REQUIRE(predicted(i, j, k, l) == doctest::Approx(expected(j, k, l)));
+                        } else {
+                            REQUIRE(predicted(i, j, k, l) == doctest::Approx(0.0));
+                        }
+                    }
                 }
             }
         }
