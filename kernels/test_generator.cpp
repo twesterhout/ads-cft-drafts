@@ -70,9 +70,14 @@ auto obtain_filenames(char const* basename, int const test_case) {
 
 auto read_parameters(char const* filename) {
     auto fp = open_file(filename);
+    Halide::Runtime::Buffer<double> DDQ{2, 2, 5};
     Halide::Runtime::Buffer<double> DQ{2, 5};
     Halide::Runtime::Buffer<double> Q{5};
     for (auto i = 0; i < 5; ++i) {
+        DDQ(0, 0, i) = read_double(fp.get());
+        DDQ(0, 1, i) = read_double(fp.get());
+        DDQ(1, 0, i) = DDQ(0, 1, i);
+        DDQ(1, 1, i) = read_double(fp.get());
         DQ(0, i) = read_double(fp.get());
         DQ(1, i) = read_double(fp.get());
         Q(i) = read_double(fp.get());
@@ -80,7 +85,7 @@ auto read_parameters(char const* filename) {
     auto z = read_double(fp.get());
     auto mu = read_double(fp.get());
     auto L = read_double(fp.get());
-    return std::tuple{z, std::move(Q), std::move(DQ), L, mu};
+    return std::tuple{z, std::move(Q), std::move(DQ), std::move(DDQ), L, mu};
 }
 
 auto read_input_ref(char const* filename) {
@@ -109,21 +114,21 @@ template <class Function> auto test_ref_function(char const* basename, Function 
 }
 
 TEST_CASE("testing g_dd function") {
-    auto [z, Q, DQ, L, mu] = read_parameters("test/input_01.dat");
+    auto [z, Q, DQ, DDQ, L, mu] = read_parameters("test/input_01.dat");
     auto const expected = load_tensor<4, 4>("test/g_dd/output_01.dat");
     Buffer<double> predicted{4, 4};
     g_dd(z, Q, L, mu, predicted);
     loop<4, 4>([&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
 }
 TEST_CASE("testing g_UU function") {
-    auto [z, Q, DQ, L, mu] = read_parameters("test/input_01.dat");
+    auto [z, Q, DQ, DDQ, L, mu] = read_parameters("test/input_01.dat");
     auto const expected = load_tensor<4, 4>("test/g_UU/output_01.dat");
     Buffer<double> predicted{4, 4};
     g_UU(z, Q, L, mu, predicted);
     loop<4, 4>([&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
 }
 TEST_CASE("testing Gamma_Udd function") {
-    auto [z, Q, DQ, L, mu] = read_parameters("test/input_01.dat");
+    auto [z, Q, DQ, DDQ, L, mu] = read_parameters("test/input_01.dat");
     auto const expected = load_tensor<4, 4, 4>("test/Gamma_Udd/output_01.dat");
     Buffer<double> predicted{4, 4, 4};
     Gamma_Udd(z, Q, DQ, L, mu, predicted);
@@ -131,7 +136,7 @@ TEST_CASE("testing Gamma_Udd function") {
         [&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
 }
 TEST_CASE("testing Xi_U function") {
-    auto [z, Q, DQ, L, mu] = read_parameters("test/input_01.dat");
+    auto [z, Q, DQ, DDQ, L, mu] = read_parameters("test/input_01.dat");
     auto const expected = load_tensor<4>("test/Xi_U/output_01.dat");
     Buffer<double> predicted{4};
     Xi_U(z, Q, DQ, L, mu, predicted);
