@@ -21,6 +21,14 @@ target_link_libraries(lesson_15.generator PRIVATE Halide::Generator)
 add_executable(einstein_equations.generator einstein_equations_generator.cpp)
 target_link_libraries(einstein_equations.generator PRIVATE Halide::Generator)
 
+add_halide_library(g_dd
+    FROM einstein_equations.generator GENERATOR g_dd_generator)
+add_halide_library(g_UU
+    FROM einstein_equations.generator GENERATOR g_UU_generator)
+add_halide_library(Gamma_Udd
+    FROM einstein_equations.generator GENERATOR Gamma_Udd_generator)
+add_halide_library(Xi_U
+    FROM einstein_equations.generator GENERATOR Xi_U_generator)
 add_halide_library(g_dd_ref
     FROM einstein_equations.generator GENERATOR g_dd_ref_generator)
 add_halide_library(g_UU_ref
@@ -38,5 +46,5 @@ add_halide_library(DGamma_dUdd_ref
 
 add_executable(test_generator test_generator.cpp)
 target_link_libraries(test_generator
-    PRIVATE g_dd_ref g_UU_ref Dg_dd_ref Dg_UU_ref DDg_dd_ref Gamma_Udd_ref DGamma_dUdd_ref)
+    PRIVATE g_dd g_UU Gamma_Udd Xi_U g_dd_ref g_UU_ref Dg_dd_ref Dg_UU_ref DDg_dd_ref Gamma_Udd_ref DGamma_dUdd_ref)
 target_include_directories(test_generator PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../third_party)

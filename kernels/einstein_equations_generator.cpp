@@ -71,20 +71,43 @@ auto make_DGamma_dUdd(Func g_UU, Func Dg_dUU, Func Dg_ddd, Func DDg_dddd) -> Fun
 }
 
 auto make_Xi_U(Func g_UU, Func Gamma_Udd, Func Gamma_Udd_ref) -> Func {
-    Var mu{"mu"};
+    Var nu{"nu"}, mu{"mu"};
+    RDom lambda{0, 4, "lambda"};
+    Func Xi_U{"Xi_U"};
+    Func temp;
+    temp(mu, nu) =
+        sum(g_UU(nu, lambda) * (Gamma_Udd(mu, nu, lambda) - Gamma_Udd_ref(mu, nu, lambda)));
+    Xi_U(mu) = sum(temp(mu, lambda));
+    return Xi_U;
+}
+
+auto make_DXi_dU(Func g_UU, Func Dg_dUU, Func Gamma_Udd, Func DGamma_dUdd, Func Gamma_Udd_ref,
+                 Func DGamma_dUdd_ref) -> Func {
+    Var mu{"mu"}, rho{"rho"};
     RDom nu{0, 4, "nu"};
     RDom lambda{0, 4, "lambda"};
-    Func Xi_U;
-    Xi_U(mu) = g_UU(nu, lambda) * (Gamma_Udd(mu, nu, lambda) - Gamma_Udd_ref(mu, nu, lambda));
-    return Xi_U;
+    Func output;
+    output(rho, mu) =
+        sum(g_UU(nu, lambda) *
+                (DGamma_dUdd(rho, mu, nu, lambda) - DGamma_dUdd_ref(rho, mu, nu, lambda)) +
+            Dg_dUU(rho, nu, lambda) * (Gamma_Udd(mu, nu, lambda) - Gamma_Udd_ref(mu, nu, lambda)));
+    return output;
 }
 
 auto make_Xi_d(Func g_dd, Func Xi_U) -> Func {
     Var mu{"mu"};
     RDom nu{0, 4, "nu"};
-    Func Xi_d;
-    Xi_d(mu) = g_dd(mu, nu) * Xi_U(nu);
-    return Xi_d;
+    Func output;
+    output(mu) = g_dd(mu, nu) * Xi_U(nu);
+    return output;
+}
+
+auto make_DXi_dd(Func g_dd, Func Dg_ddd, Func Xi_U, Func DXi_dU) -> Func {
+    Var lambda{"lambda"}, mu{"mu"};
+    RDom nu{0, 4, "nu"};
+    Func output;
+    output(lambda, mu) = Dg_ddd(lambda, mu, nu) * Xi_U(nu) + g_dd(mu, nu) * DXi_dU(lambda, nu);
+    return output;
 }
 
 auto covariant_derivative(Func v_d, Func Dv_dd, Func Gamma_Udd) -> Func {
@@ -92,6 +115,28 @@ auto covariant_derivative(Func v_d, Func Dv_dd, Func Gamma_Udd) -> Func {
     RDom lambda{0, 4, "lambda"};
     Func output;
     output(mu, nu) = Dv_dd(mu, nu) - Gamma_Udd(lambda, nu, mu) * v_d(lambda);
+    return output;
+}
+
+auto make_Q_ref() -> Func {
+    Var i;
+    Func output;
+    output(i) = cast<double>(1);
+    output(4) = cast<double>(0);
+    return output;
+}
+
+auto make_DQ_ref() -> Func {
+    Var i, j;
+    Func output;
+    output(i, j) = cast<double>(0);
+    return output;
+}
+
+auto make_DDQ_ref() -> Func {
+    Var i, j, k;
+    Func output;
+    output(i, j, k) = cast<double>(0);
     return output;
 }
 
@@ -112,6 +157,103 @@ auto make_g_dd_ref(Expr z, InputDouble const& L, InputDouble const& mu) -> Func 
     g_dd(3, 3) = pre * 2 / (2 + z4 * mu2 - z3 * (2 + mu2));
     return g_dd;
 }
+
+class g_dd_generator : public Halide::Generator<g_dd_generator> {
+  public:
+    Input<double> z{"z"};
+    Input<Buffer<double>> Q{"Q", 1};
+    Input<double> length{"length"};
+    Input<double> chemical_potential{"chemical_potential"};
+    Output<Buffer<double>> output{"output", 2};
+
+    void generate() {
+        output = make_g_dd(z, Q, length, chemical_potential);
+        output.dim(0).set_bounds(0, 4).dim(1).set_bounds(0, 4);
+    }
+};
+class g_UU_generator : public Halide::Generator<g_UU_generator> {
+  public:
+    Input<double> z{"z"};
+    Input<Buffer<double>> Q{"Q", 1};
+    Input<double> length{"length"};
+    Input<double> chemical_potential{"chemical_potential"};
+    Output<Buffer<double>> output{"output", 2};
+
+    void generate() {
+        output = make_g_UU(z, Q, length, chemical_potential);
+        output.dim(0).set_bounds(0, 4).dim(1).set_bounds(0, 4);
+    }
+};
+class Gamma_Udd_generator : public Halide::Generator<Gamma_Udd_generator> {
+  public:
+    Input<double> z{"z"};
+    Input<Buffer<double>> Q{"Q", 1};
+    Input<Buffer<double>> DQ{"DQ", 2};
+    Input<double> length{"length"};
+    Input<double> chemical_potential{"chemical_potential"};
+    Output<Buffer<double>> output{"output", 3};
+
+    void generate() {
+        auto g_UU = make_g_UU(z, Q, length, chemical_potential);
+        auto Dg_ddd = make_Dg_ddd(z, Q, DQ, length, chemical_potential);
+        output = make_Gamma_Udd(g_UU, Dg_ddd);
+        output.dim(0).set_bounds(0, 4).dim(1).set_bounds(0, 4).dim(2).set_bounds(0, 4);
+    }
+};
+class Xi_U_generator : public Halide::Generator<Xi_U_generator> {
+  public:
+    Input<double> z{"z"};
+    Input<Buffer<double>> Q{"Q", 1};
+    Input<Buffer<double>> DQ{"DQ", 2};
+    Input<double> length{"length"};
+    Input<double> chemical_potential{"chemical_potential"};
+    Output<Buffer<double>> output{"output", 1};
+
+    void generate() {
+        auto g_UU = make_g_UU(z, Q, length, chemical_potential);
+        auto Dg_ddd = make_Dg_ddd(z, Q, DQ, length, chemical_potential);
+        auto Gamma_Udd = make_Gamma_Udd(g_UU, Dg_ddd);
+        auto Q_ref = make_Q_ref();
+        auto DQ_ref = make_DQ_ref();
+        auto Gamma_Udd_ref =
+            make_Gamma_Udd(make_g_UU(z, Q_ref, length, chemical_potential),
+                           make_Dg_ddd(z, Q_ref, DQ_ref, length, chemical_potential));
+        output = make_Xi_U(g_UU, Gamma_Udd, Gamma_Udd_ref);
+        output.dim(0).set_bounds(0, 4);
+    }
+};
+class DXi_dU_generator : public Halide::Generator<DXi_dU_generator> {
+  public:
+    Input<double> z{"z"};
+    Input<Buffer<double>> Q{"Q", 1};
+    Input<Buffer<double>> DQ{"DQ", 2};
+    Input<Buffer<double>> DDQ{"DQ", 3};
+    Input<double> length{"length"};
+    Input<double> chemical_potential{"chemical_potential"};
+    Output<Buffer<double>> output{"output", 1};
+
+    void generate() {
+        auto g_UU = make_g_UU(z, Q, length, chemical_potential);
+        auto Dg_ddd = make_Dg_ddd(z, Q, DQ, length, chemical_potential);
+        auto Dg_dUU = make_Dg_dUU(z, Q, DQ, length, chemical_potential);
+        auto DDg_dddd = make_DDg_dddd(z, Q, DQ, DDQ, length, chemical_potential);
+        auto Gamma_Udd = make_Gamma_Udd(g_UU, Dg_ddd);
+        auto DGamma_dUdd = make_DGamma_dUdd(g_UU, Dg_dUU, Dg_ddd, DDg_dddd);
+
+        auto Q_ref = make_Q_ref();
+        auto DQ_ref = make_DQ_ref();
+        auto DDQ_ref = make_DDQ_ref();
+        auto g_UU_ref = make_g_UU(z, Q_ref, length, chemical_potential);
+        auto Dg_ddd_ref = make_Dg_ddd(z, Q_ref, DQ_ref, length, chemical_potential);
+        auto Dg_dUU_ref = make_Dg_dUU(z, Q_ref, DQ_ref, length, chemical_potential);
+        auto DDg_dddd_ref = make_DDg_dddd(z, Q_ref, DQ_ref, DDQ_ref, length, chemical_potential);
+        auto Gamma_Udd_ref = make_Gamma_Udd(g_UU_ref, Dg_ddd_ref);
+        auto DGamma_dUdd_ref = make_DGamma_dUdd(g_UU_ref, Dg_dUU_ref, Dg_ddd_ref, DDg_dddd_ref);
+
+        output = make_DXi_dU(g_UU, Dg_dUU, Gamma_Udd, DGamma_dUdd, Gamma_Udd_ref, DGamma_dUdd_ref);
+        output.dim(0).set_bounds(0, 4).dim(1).set_bounds(0, 4);
+    }
+};
 
 class g_dd_ref_generator : public Halide::Generator<g_dd_ref_generator> {
   public:
@@ -332,6 +474,11 @@ class DGamma_dUdd_ref_generator : public Halide::Generator<DGamma_dUdd_ref_gener
         // clang-format on
     }
 };
+
+HALIDE_REGISTER_GENERATOR(g_dd_generator, g_dd_generator)
+HALIDE_REGISTER_GENERATOR(g_UU_generator, g_UU_generator)
+HALIDE_REGISTER_GENERATOR(Gamma_Udd_generator, Gamma_Udd_generator)
+HALIDE_REGISTER_GENERATOR(Xi_U_generator, Xi_U_generator)
 
 HALIDE_REGISTER_GENERATOR(g_dd_ref_generator, g_dd_ref_generator)
 HALIDE_REGISTER_GENERATOR(g_UU_ref_generator, g_UU_ref_generator)
