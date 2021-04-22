@@ -1,8 +1,99 @@
 #include "Halide.h"
+#include "generated_expressions.hpp"
 
 #include <cstdio>
 
 using namespace Halide;
+
+auto make_g_dd(Expr z, Func Q, Expr L, Expr mu) -> Func {
+    Var _mu{"mu"}, _nu{"nu"};
+    Func output{"g_dd"};
+    output(_mu, _nu) = cast<double>(0);
+    FROM_EXPRESSIONS_g_dd(output);
+    return output;
+}
+
+auto make_Dg_ddd(Expr z, Func Q, Func DQ, Expr L, Expr mu) -> Func {
+    Var _lambda{"lambda"}, _mu{"mu"}, _nu{"nu"};
+    Func output{"Dg_ddd"};
+    output(_lambda, _mu, _nu) = cast<double>(0);
+    FROM_EXPRESSIONS_Dg_ddd(output);
+    return output;
+}
+
+auto make_DDg_dddd(Expr z, Func Q, Func DQ, Func DDQ, Expr L, Expr mu) -> Func {
+    Var _kappa{"kappa"}, _lambda{"lambda"}, _mu{"mu"}, _nu{"nu"};
+    Func output{"DDg_dddd"};
+    output(_kappa, _lambda, _mu, _nu) = cast<double>(0);
+    FROM_EXPRESSIONS_DDg_dddd(output);
+    return output;
+}
+
+auto make_g_UU(Expr z, Func Q, Expr L, Expr mu) -> Func {
+    Var _mu{"mu"}, _nu{"nu"};
+    Func output{"g_UU"};
+    output(_mu, _nu) = cast<double>(0);
+    FROM_EXPRESSIONS_g_UU(output);
+    return output;
+}
+
+auto make_Dg_dUU(Expr z, Func Q, Func DQ, Expr L, Expr mu) -> Func {
+    Var _lambda{"lambda"}, _mu{"mu"}, _nu{"nu"};
+    Func output{"Dg_dUU"};
+    output(_lambda, _mu, _nu) = cast<double>(0);
+    FROM_EXPRESSIONS_Dg_dUU(output);
+    return output;
+}
+
+auto make_Gamma_Udd(Func g_UU, Func Dg_ddd) -> Func {
+    Var mu{"mu"}, nu{"nu"}, lambda{"lambda"};
+    RDom rho{0, 4, "rho"};
+
+    Func Gamma_Udd;
+    Gamma_Udd(lambda, mu, nu) =
+        0.5f *
+        sum(g_UU(lambda, rho) * (Dg_ddd(mu, nu, rho) + Dg_ddd(nu, mu, rho) - Dg_ddd(rho, mu, nu)));
+    return Gamma_Udd;
+}
+
+auto make_DGamma_dUdd(Func g_UU, Func Dg_dUU, Func Dg_ddd, Func DDg_dddd) -> Func {
+    Var mu{"mu"}, nu{"nu"}, lambda{"lambda"}, kappa{"kappa"};
+    RDom rho{0, 4, "rho"};
+
+    Func DGamma_dUdd;
+    DGamma_dUdd(kappa, lambda, mu, nu) =
+        0.5f *
+        sum(Dg_dUU(kappa, lambda, rho) *
+                (Dg_ddd(mu, nu, rho) + Dg_ddd(nu, mu, rho) - Dg_ddd(rho, mu, nu)) +
+            g_UU(lambda, rho) * (DDg_dddd(kappa, mu, nu, rho) + DDg_dddd(kappa, nu, mu, rho) -
+                                 DDg_dddd(kappa, rho, mu, nu)));
+    return DGamma_dUdd;
+}
+
+auto make_Xi_U(Func g_UU, Func Gamma_Udd, Func Gamma_Udd_ref) -> Func {
+    Var mu{"mu"};
+    RDom nu{0, 4, "nu"};
+    RDom lambda{0, 4, "lambda"};
+    Func Xi_U;
+    Xi_U(mu) = g_UU(nu, lambda) * (Gamma_Udd(mu, nu, lambda) - Gamma_Udd_ref(mu, nu, lambda));
+    return Xi_U;
+}
+
+auto make_Xi_d(Func g_dd, Func Xi_U) -> Func {
+    Var mu{"mu"};
+    RDom nu{0, 4, "nu"};
+    Func Xi_d;
+    Xi_d(mu) = g_dd(mu, nu) * Xi_U(nu);
+    return Xi_d;
+}
+
+auto covariant_derivative(Func v_d, Func Dv_dd, Func Gamma_Udd) -> Func {
+    Var mu{"mu"}, nu{"nu"};
+    RDom lambda{0, 4, "lambda"};
+    Func output;
+    output(mu, nu) = Dv_dd(mu, nu) - Gamma_Udd(lambda, nu, mu) * v_d(lambda);
+    return output;
+}
 
 template <class InputDouble>
 auto make_g_dd_ref(Expr z, InputDouble const& L, InputDouble const& mu) -> Func {
@@ -30,7 +121,11 @@ class g_dd_ref_generator : public Halide::Generator<g_dd_ref_generator> {
     Output<Buffer<double>> output{"output", 2};
 
     void generate() {
-        output = make_g_dd_ref(z, length, chemical_potential);
+        Var mu;
+        Func Q;
+        Q(mu) = cast<double>(1);
+        Q(4) = cast<double>(0);
+        output = make_g_dd(z, Q, length, chemical_potential);
         // clang-format off
         output.dim(0).set_bounds(0, 4)
               .dim(1).set_bounds(0, 4);
@@ -182,17 +277,6 @@ class DDg_dd_ref_generator : public Halide::Generator<DDg_dd_ref_generator> {
     }
 };
 
-auto make_Gamma_Udd(Func g_UU, Func Dg_dd) -> Func {
-    Var mu{"mu"}, nu{"nu"}, lambda{"lambda"};
-    RDom rho{0, 4, "rho"};
-
-    Func Gamma_Udd;
-    Gamma_Udd(lambda, mu, nu) =
-        0.5f *
-        sum(g_UU(lambda, rho) * (Dg_dd(mu, nu, rho) + Dg_dd(nu, mu, rho) - Dg_dd(rho, mu, nu)));
-    return Gamma_Udd;
-}
-
 class Gamma_Udd_ref_generator : public Halide::Generator<Gamma_Udd_ref_generator> {
   public:
     Input<double> z{"z"};
@@ -216,19 +300,6 @@ class Gamma_Udd_ref_generator : public Halide::Generator<Gamma_Udd_ref_generator
         // clang-format on
     }
 };
-
-auto make_DGamma_dUdd(Func g_UU, Func Dg_UU, Func Dg_dd, Func DDg_dd) -> Func {
-    Var mu{"mu"}, nu{"nu"}, lambda{"lambda"}, kappa{"kappa"};
-    RDom rho{0, 4, "rho"};
-
-    Func DGamma_dUdd;
-    DGamma_dUdd(kappa, lambda, mu, nu) =
-        0.5f * sum(Dg_UU(kappa, lambda, rho) *
-                       (Dg_dd(mu, nu, rho) + Dg_dd(nu, mu, rho) - Dg_dd(rho, mu, nu)) +
-                   g_UU(lambda, rho) * (DDg_dd(kappa, mu, nu, rho) + DDg_dd(kappa, nu, mu, rho) -
-                                        DDg_dd(kappa, rho, mu, nu)));
-    return DGamma_dUdd;
-}
 
 class DGamma_dUdd_ref_generator : public Halide::Generator<DGamma_dUdd_ref_generator> {
   public:
