@@ -50,10 +50,10 @@
 #define FROM_EXPRESSIONS_DDg_dddd(dEsTiNaTiOn) \
     dEsTiNaTiOn(1, 1, 0, 0) = (DDQ(0, 0, 0)*(-1 + z)*(L * L)*(1 + z + z * z - ((mu * mu)*(z * z * z))/2))/(z * z); \
     dEsTiNaTiOn(1, 1, 1, 1) = (DDQ(0, 0, 1)*(L * L))/(z * z); \
-    dEsTiNaTiOn(1, 1, 1, 3) = 4*DQ(0, 1)*DQ(0, 4)*(L * L) + 2*DDQ(0, 0, 3)*Q(1)*(L * L) + 2*DDQ(0, 0, 1)*Q(4)*(L * L); \
+    dEsTiNaTiOn(1, 1, 1, 3) = 4*DQ(0, 1)*DQ(0, 4)*(L * L) + 2*DDQ(0, 0, 4)*Q(1)*(L * L) + 2*DDQ(0, 0, 1)*Q(4)*(L * L); \
     dEsTiNaTiOn(1, 1, 2, 2) = (DDQ(0, 0, 2)*(L * L))/(z * z); \
-    dEsTiNaTiOn(1, 1, 3, 1) = 4*DQ(0, 1)*DQ(0, 4)*(L * L) + 2*DDQ(0, 0, 3)*Q(1)*(L * L) + 2*DDQ(0, 0, 1)*Q(4)*(L * L); \
-    dEsTiNaTiOn(1, 1, 3, 3) = ((L * L)*(4*DQ(0, 1)*DQ(0, 4)*Q(4)*(z * z * z * z) + 2*DDQ(0, 0, 3)*Q(1)*Q(4)*(z * z * z * z) + 2*Q(1)*(DQ(0, 4) * DQ(0, 4))*(z * z * z * z) + DDQ(0, 0, 1)*(Q(4) * Q(4))*(z * z * z * z) + (2*DDQ(0, 0, 3))/(2 - (2 + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))))/(z * z); \
+    dEsTiNaTiOn(1, 1, 3, 1) = 4*DQ(0, 1)*DQ(0, 4)*(L * L) + 2*DDQ(0, 0, 4)*Q(1)*(L * L) + 2*DDQ(0, 0, 1)*Q(4)*(L * L); \
+    dEsTiNaTiOn(1, 1, 3, 3) = ((L * L)*(4*DQ(0, 1)*DQ(0, 4)*Q(4)*(z * z * z * z) + 2*DDQ(0, 0, 4)*Q(1)*Q(4)*(z * z * z * z) + 2*Q(1)*(DQ(0, 4) * DQ(0, 4))*(z * z * z * z) + DDQ(0, 0, 1)*(Q(4) * Q(4))*(z * z * z * z) + (2*DDQ(0, 0, 3))/(2 - (2 + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))))/(z * z); \
     dEsTiNaTiOn(1, 3, 0, 0) = (DQ(0, 0)*(-1 + z)*(L * L)*(1 + 2*z - (3*(mu * mu)*(z * z))/2))/(z * z) + (DQ(0, 0)*(L * L)*(1 + z + z * z - ((mu * mu)*(z * z * z))/2))/(z * z) + (DDQ(0, 1, 0)*(-1 + z)*(L * L)*(1 + z + z * z - ((mu * mu)*(z * z * z))/2))/(z * z) - (2*DQ(0, 0)*(-1 + z)*(L * L)*(1 + z + z * z - ((mu * mu)*(z * z * z))/2))/(z * z * z); \
     dEsTiNaTiOn(1, 3, 1, 1) = (DDQ(0, 1, 1)*(L * L))/(z * z) - (2*DQ(0, 1)*(L * L))/(z * z * z); \
     dEsTiNaTiOn(1, 3, 1, 3) = 2*DQ(0, 4)*DQ(1, 1)*(L * L) + 2*DQ(0, 1)*DQ(1, 4)*(L * L) + 2*DDQ(0, 1, 4)*Q(1)*(L * L) + 2*DDQ(0, 1, 1)*Q(4)*(L * L); \

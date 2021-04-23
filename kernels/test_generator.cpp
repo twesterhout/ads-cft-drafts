@@ -1,15 +1,25 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
-#include "DDg_dd_ref.h"
-#include "DGamma_dUdd_ref.h"
-#include "Dg_UU_ref.h"
-#include "Dg_dd_ref.h"
+#if 0
+// #include "DDg_dd_ref.h"
+// #include "DGamma_dUdd_ref.h"
+#include "DXi_dU.h"
+#include "DXi_dd.h"
+// #include "Dg_UU_ref.h"
+// #include "Dg_dd_ref.h"
+#include "DGamma_dUdd.h"
 #include "Gamma_Udd.h"
-#include "Gamma_Udd_ref.h"
+// #include "Gamma_Udd_ref.h"
+#include "DDg_dddd.h"
+#include "Dg_dUU.h"
+#include "Dg_ddd.h"
 #include "Xi_U.h"
+#include "Xi_d.h"
 #include "g_UU.h"
-#include "g_UU_ref.h"
+// #include "g_UU_ref.h"
 #include "g_dd.h"
-#include "g_dd_ref.h"
+// #include "g_dd_ref.h"
+#endif
+#include "compute_all.h"
 #include <HalideBuffer.h>
 #include <doctest.h>
 #include <memory>
@@ -59,6 +69,7 @@ template <size_t... Ns> auto load_tensor(char const* filename) -> Halide::Runtim
     return load_tensor<Ns...>(fp.get());
 }
 
+#if 0
 auto obtain_filenames(char const* basename, int const test_case) {
     char buffer[128];
     std::snprintf(buffer, std::size(buffer), "%s/input_%02d.dat", basename, test_case);
@@ -67,6 +78,7 @@ auto obtain_filenames(char const* basename, int const test_case) {
     std::string output{buffer};
     return std::make_tuple(std::move(input), std::move(output));
 }
+#endif
 
 auto read_parameters(char const* filename) {
     auto fp = open_file(filename);
@@ -75,8 +87,9 @@ auto read_parameters(char const* filename) {
     Halide::Runtime::Buffer<double> Q{5};
     for (auto i = 0; i < 5; ++i) {
         DDQ(0, 0, i) = read_double(fp.get());
-        DDQ(0, 1, i) = read_double(fp.get());
-        DDQ(1, 0, i) = DDQ(0, 1, i);
+        auto off_diag = read_double(fp.get());
+        DDQ(0, 1, i) = off_diag;
+        DDQ(1, 0, i) = off_diag;
         DDQ(1, 1, i) = read_double(fp.get());
         DQ(0, i) = read_double(fp.get());
         DQ(1, i) = read_double(fp.get());
@@ -88,6 +101,7 @@ auto read_parameters(char const* filename) {
     return std::tuple{z, std::move(Q), std::move(DQ), std::move(DDQ), L, mu};
 }
 
+#if 0
 auto read_input_ref(char const* filename) {
     auto fp = open_file(filename);
     double L, mu, z;
@@ -112,7 +126,58 @@ template <class Function> auto test_ref_function(char const* basename, Function 
         }
     }
 }
+#endif
 
+auto run_compute_all(char const* filename) {
+    auto [z, Q, DQ, DDQ, L, mu] = read_parameters(filename);
+    Buffer<double> g_dd{4, 4};
+    Buffer<double> g_UU{4, 4};
+    Buffer<double> Dg_ddd{4, 4, 4};
+    Buffer<double> Dg_dUU{4, 4, 4};
+    Buffer<double> DDg_dddd{4, 4, 4, 4};
+    Buffer<double> Gamma_Udd{4, 4, 4};
+    Buffer<double> DGamma_dUdd{4, 4, 4, 4};
+    Buffer<double> Xi_U{4};
+    Buffer<double> Xi_d{4};
+    Buffer<double> DXi_dU{4, 4};
+    Buffer<double> DXi_dd{4, 4};
+    Buffer<double> DivXi_dd{4, 4};
+    Buffer<double> R_Uddd{4, 4, 4, 4};
+    Buffer<double> R_dd{4, 4};
+
+    compute_all(z, Q, DQ, DDQ, L, mu, g_dd, g_UU, Dg_ddd, Dg_dUU, DDg_dddd, Gamma_Udd, DGamma_dUdd,
+                Xi_U, Xi_d, DXi_dU, DXi_dd, DivXi_dd, R_Uddd, R_dd);
+    return std::tuple{g_dd, g_UU, Dg_ddd, Dg_dUU, DDg_dddd, Gamma_Udd, DGamma_dUdd,
+                      Xi_U, Xi_d, DXi_dU, DXi_dd, DivXi_dd, R_Uddd,    R_dd};
+}
+
+template <size_t... Ns>
+auto check_equal(Buffer<double> const& predicted, Buffer<double> const& expected) {
+    loop<Ns...>([&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
+}
+
+TEST_CASE("compute_all") {
+    auto [g_dd, g_UU, Dg_ddd, Dg_dUU, DDg_dddd, Gamma_Udd, DGamma_dUdd, Xi_U, Xi_d, DXi_dU, DXi_dd,
+          DivXi_dd, R_Uddd, R_dd] = run_compute_all("test/input_01.dat");
+    // clang-format off
+    SUBCASE("g_dd") { check_equal<4, 4>(g_dd, load_tensor<4, 4>("test/g_dd/output_01.dat")); }
+    SUBCASE("g_UU") { check_equal<4, 4>(g_UU, load_tensor<4, 4>("test/g_UU/output_01.dat")); }
+    SUBCASE("Dg_ddd") { check_equal<4, 4, 4>(Dg_ddd, load_tensor<4, 4, 4>("test/Dg_ddd/output_01.dat")); }
+    SUBCASE("Dg_dUU") { check_equal<4, 4, 4>(Dg_dUU, load_tensor<4, 4, 4>("test/Dg_dUU/output_01.dat")); }
+    SUBCASE("DDg_dddd") { check_equal<4, 4, 4, 4>(DDg_dddd, load_tensor<4, 4, 4, 4>("test/DDg_dddd/output_01.dat")); }
+    SUBCASE("Gamma_Udd") { check_equal<4, 4, 4>(Gamma_Udd, load_tensor<4, 4, 4>("test/Gamma_Udd/output_01.dat")); }
+    SUBCASE("DGamma_dUdd") { check_equal<4, 4, 4, 4>(DGamma_dUdd, load_tensor<4, 4, 4, 4>("test/DGamma_dUdd/output_01.dat")); }
+    SUBCASE("Xi_U") { check_equal<4>(Xi_U, load_tensor<4>("test/Xi_U/output_01.dat")); }
+    SUBCASE("Xi_d") { check_equal<4>(Xi_d, load_tensor<4>("test/Xi_d/output_01.dat")); }
+    SUBCASE("DXi_dU") { check_equal<4, 4>(DXi_dU, load_tensor<4, 4>("test/DXi_dU/output_01.dat")); }
+    SUBCASE("DXi_dd") { check_equal<4, 4>(DXi_dd, load_tensor<4, 4>("test/DXi_dd/output_01.dat")); }
+    SUBCASE("DivXi_dd") { check_equal<4, 4>(DivXi_dd, load_tensor<4, 4>("test/DivXi_dd/output_01.dat")); }
+    SUBCASE("R_Uddd") { check_equal<4, 4, 4, 4>(R_Uddd, load_tensor<4, 4, 4, 4>("test/R_Uddd/output_01.dat")); }
+    SUBCASE("R_dd") { check_equal<4, 4>(R_dd, load_tensor<4, 4>("test/R_dd/output_01.dat")); }
+    // clang-format on
+}
+
+#if 0
 TEST_CASE("testing g_dd function") {
     auto [z, Q, DQ, DDQ, L, mu] = read_parameters("test/input_01.dat");
     auto const expected = load_tensor<4, 4>("test/g_dd/output_01.dat");
@@ -127,12 +192,44 @@ TEST_CASE("testing g_UU function") {
     g_UU(z, Q, L, mu, predicted);
     loop<4, 4>([&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
 }
+TEST_CASE("testing Dg_ddd function") {
+    auto [z, Q, DQ, DDQ, L, mu] = read_parameters("test/input_01.dat");
+    auto const expected = load_tensor<4, 4, 4>("test/Dg_ddd/output_01.dat");
+    Buffer<double> predicted{4, 4, 4};
+    Dg_ddd(z, Q, DQ, L, mu, predicted);
+    loop<4, 4, 4>(
+        [&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
+}
+TEST_CASE("testing Dg_dUU function") {
+    auto [z, Q, DQ, DDQ, L, mu] = read_parameters("test/input_01.dat");
+    auto const expected = load_tensor<4, 4, 4>("test/Dg_dUU/output_01.dat");
+    Buffer<double> predicted{4, 4, 4};
+    Dg_dUU(z, Q, DQ, L, mu, predicted);
+    loop<4, 4, 4>(
+        [&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
+}
+TEST_CASE("testing DDg_dddd function") {
+    auto [z, Q, DQ, DDQ, L, mu] = read_parameters("test/input_01.dat");
+    auto const expected = load_tensor<4, 4, 4, 4>("test/DDg_dddd/output_01.dat");
+    Buffer<double> predicted{4, 4, 4, 4};
+    DDg_dddd(z, Q, DQ, DDQ, L, mu, predicted);
+    loop<4, 4, 4, 4>(
+        [&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
+}
 TEST_CASE("testing Gamma_Udd function") {
     auto [z, Q, DQ, DDQ, L, mu] = read_parameters("test/input_01.dat");
     auto const expected = load_tensor<4, 4, 4>("test/Gamma_Udd/output_01.dat");
     Buffer<double> predicted{4, 4, 4};
     Gamma_Udd(z, Q, DQ, L, mu, predicted);
     loop<4, 4, 4>(
+        [&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
+}
+TEST_CASE("testing DGamma_dUdd function") {
+    auto [z, Q, DQ, DDQ, L, mu] = read_parameters("test/input_01.dat");
+    auto const expected = load_tensor<4, 4, 4, 4>("test/DGamma_dUdd/output_01.dat");
+    Buffer<double> predicted{4, 4, 4, 4};
+    DGamma_dUdd(z, Q, DQ, DDQ, L, mu, predicted);
+    loop<4, 4, 4, 4>(
         [&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
 }
 TEST_CASE("testing Xi_U function") {
@@ -142,7 +239,30 @@ TEST_CASE("testing Xi_U function") {
     Xi_U(z, Q, DQ, L, mu, predicted);
     loop<4>([&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
 }
+TEST_CASE("testing Xi_d function") {
+    auto [z, Q, DQ, DDQ, L, mu] = read_parameters("test/input_01.dat");
+    auto const expected = load_tensor<4>("test/Xi_d/output_01.dat");
+    Buffer<double> predicted{4};
+    Xi_d(z, Q, DQ, L, mu, predicted);
+    loop<4>([&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
+}
+TEST_CASE("testing DXi_dU function") {
+    auto [z, Q, DQ, DDQ, L, mu] = read_parameters("test/input_01.dat");
+    auto const expected = load_tensor<4, 4>("test/DXi_dU/output_01.dat");
+    Buffer<double> predicted{4, 4};
+    DXi_dU(z, Q, DQ, DDQ, L, mu, predicted);
+    loop<4, 4>([&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
+}
+TEST_CASE("testing DXi_dd function") {
+    auto [z, Q, DQ, DDQ, L, mu] = read_parameters("test/input_01.dat");
+    auto const expected = load_tensor<4, 4>("test/DXi_dd/output_01.dat");
+    Buffer<double> predicted{4, 4};
+    DXi_dd(z, Q, DQ, DDQ, L, mu, predicted);
+    loop<4, 4>([&](auto... is) { REQUIRE(predicted(is...) == doctest::Approx(expected(is...))); });
+}
+#endif
 
+#if 0
 TEST_CASE("testing g_dd_ref function") { test_ref_function("test/g_dd_ref", g_dd_ref); }
 TEST_CASE("testing g_UU_ref function") { test_ref_function("test/g_UU_ref", g_UU_ref); }
 TEST_CASE("testing Dg_dd_ref function") { test_ref_function("test/Dg_dd_ref", Dg_dd_ref); }
@@ -188,3 +308,4 @@ TEST_CASE("testing DGamma_dUdd_ref function") {
         }
     }
 }
+#endif
