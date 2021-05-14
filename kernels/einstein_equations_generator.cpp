@@ -167,6 +167,65 @@ auto make_R_dd(Func R_Uddd) -> Func {
     return output;
 }
 
+auto make_F_dd(Expr z, Expr Psi, Func DPsi) -> Func {
+    Var _mu{"mu"}, _nu{"nu"};
+    Func output{"F_dd"};
+    output(_mu, _nu) = cast<double>(0);
+    FROM_EXPRESSIONS_F_dd(output);
+    return output;
+}
+
+auto make_DF_ddd(Expr z, Expr Psi, Func DPsi, Func DDPsi) -> Func {
+    Var mu{"mu"}, nu{"nu"}, rho{"rho"};
+    Func output{"DF_ddd"};
+    output(mu, nu, rho) = cast<double>(0);
+    FROM_EXPRESSIONS_DF_ddd(output);
+    return output;
+}
+
+auto make_F_Ud(Func F_dd, Func g_UU) -> Func {
+    Var mu{"mu"}, nu{"nu"};
+    RDom rho{0, 4, "rho"};
+    Func output{"F_Ud"};
+    output(mu, nu) = sum(g_UU(mu, rho) * F_dd(rho, nu));
+    return output;
+}
+
+auto make_F_UU(Func F_Ud, Func g_UU) -> Func {
+    Var mu{"mu"}, nu{"nu"};
+    RDom rho{0, 4, "rho"};
+    Func output{"F_UU"};
+    output(mu, nu) = sum(F_Ud(mu, rho) * g_UU(rho, nu));
+    return output;
+}
+
+auto make_DF_dUd(Func F_dd, Func DF_ddd, Func g_UU, Func Dg_dUU) -> Func {
+    Var mu{"mu"}, nu{"nu"}, rho{"rho"};
+    RDom lambda{0, 4, "lambda"};
+    Func output{"DF_dUd"};
+    output(rho, mu, nu) = sum(Dg_dUU(rho, mu, lambda) * F_dd(lambda, nu) +
+                              g_UU(mu, lambda) * DF_ddd(rho, lambda, nu));
+    return output;
+}
+
+auto make_DivF_d(Func F_Ud, Func DF_dUd, Func Gamma_Udd) -> Func {
+    Var nu{"nu"};
+    RDom lambda{0, 4, "lambda"}, rho{0, 4, "rho"};
+    Func output;
+    output(nu) = sum(rho, DF_dUd(rho, rho, nu) +
+                              sum(lambda, Gamma_Udd(rho, rho, lambda) * F_Ud(lambda, nu)) -
+                              sum(lambda, Gamma_Udd(lambda, rho, nu) * F_Ud(rho, lambda)));
+    return output;
+}
+
+// auto covariant_derivative(Func v_d, Func Dv_dd, Func Gamma_Udd) -> Func {
+//     Var mu{"mu"}, nu{"nu"};
+//     RDom lambda{0, 4, "lambda"};
+//     Func output;
+//     output(mu, nu) = Dv_dd(mu, nu) - sum(Gamma_Udd(lambda, nu, mu) * v_d(lambda));
+//     return output;
+// }
+
 #if 0
 template <class InputDouble>
 auto make_g_dd_ref(Expr z, InputDouble const& L, InputDouble const& mu) -> Func {
@@ -199,6 +258,9 @@ class compute_all_generator : public Halide::Generator<compute_all_generator> {
     Input<Buffer<double>> Q{"Q", 1};
     Input<Buffer<double>> DQ{"DQ", 2};
     Input<Buffer<double>> DDQ{"DDQ", 3};
+    Input<double> Psi{"Psi"};
+    Input<Buffer<double>> DPsi{"DPsi", 1};
+    Input<Buffer<double>> DDPsi{"DDPsi", 2};
     Input<double> length{"length"};
     Input<double> chemical_potential{"chemical_potential"};
 
@@ -216,6 +278,11 @@ class compute_all_generator : public Halide::Generator<compute_all_generator> {
     Output<Buffer<double>> DivXi_dd{"DivXi_dd", 2};
     Output<Buffer<double>> R_Uddd{"R_Uddd", 4};
     Output<Buffer<double>> R_dd{"R_dd", 2};
+    Output<Buffer<double>> F_dd{"F_dd", 2};
+    Output<Buffer<double>> DF_ddd{"DF_ddd", 3};
+    Output<Buffer<double>> F_Ud{"F_Ud", 2};
+    Output<Buffer<double>> DF_dUd{"DF_dUd", 3};
+    Output<Buffer<double>> DivF_d{"DivF_d", 1};
 
     void generate() {
         g_dd = make_g_dd(z, Q, length, chemical_potential);
@@ -243,6 +310,11 @@ class compute_all_generator : public Halide::Generator<compute_all_generator> {
         DivXi_dd = make_DivXi_dd(Xi_d, DXi_dd, Gamma_Udd);
         R_Uddd = make_R_Uddd(Gamma_Udd, DGamma_dUdd);
         R_dd = make_R_dd(R_Uddd);
+        F_dd = make_F_dd(z, Psi, DPsi);
+        DF_ddd = make_DF_ddd(z, Psi, DPsi, DDPsi);
+        F_Ud = make_F_Ud(F_dd, g_UU);
+        DF_dUd = make_DF_dUd(F_dd, DF_ddd, g_UU, Dg_dUU);
+        DivF_d = make_DivF_d(F_Ud, DF_dUd, Gamma_Udd);
 
         set_bounds(g_dd);
         set_bounds(g_UU);
@@ -258,6 +330,11 @@ class compute_all_generator : public Halide::Generator<compute_all_generator> {
         set_bounds(DivXi_dd);
         set_bounds(R_Uddd);
         set_bounds(R_dd);
+        set_bounds(F_dd);
+        set_bounds(DF_ddd);
+        set_bounds(F_Ud);
+        set_bounds(DF_dUd);
+        set_bounds(DivF_d);
     }
 };
 

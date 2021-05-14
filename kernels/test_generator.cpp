@@ -98,7 +98,21 @@ auto read_parameters(char const* filename) {
     auto z = read_double(fp.get());
     auto mu = read_double(fp.get());
     auto L = read_double(fp.get());
-    return std::tuple{z, std::move(Q), std::move(DQ), std::move(DDQ), L, mu};
+    Halide::Runtime::Buffer<double> DDPsi{2, 2};
+    Halide::Runtime::Buffer<double> DPsi{2};
+    {
+        DDPsi(0, 0) = read_double(fp.get());
+        auto off_diag = read_double(fp.get());
+        DDPsi(0, 1) = off_diag;
+        DDPsi(1, 0) = off_diag;
+        DDPsi(1, 1) = read_double(fp.get());
+        DPsi(0) = read_double(fp.get());
+        DPsi(1) = read_double(fp.get());
+    }
+    auto Psi = read_double(fp.get());
+    return std::tuple{z,   std::move(Q),    std::move(DQ),    std::move(DDQ),
+                      Psi, std::move(DPsi), std::move(DDPsi), L,
+                      mu};
 }
 
 #if 0
@@ -129,7 +143,7 @@ template <class Function> auto test_ref_function(char const* basename, Function 
 #endif
 
 auto run_compute_all(char const* filename) {
-    auto [z, Q, DQ, DDQ, L, mu] = read_parameters(filename);
+    auto [z, Q, DQ, DDQ, Psi, DPsi, DDPsi, L, mu] = read_parameters(filename);
     Buffer<double> g_dd{4, 4};
     Buffer<double> g_UU{4, 4};
     Buffer<double> Dg_ddd{4, 4, 4};
@@ -144,11 +158,18 @@ auto run_compute_all(char const* filename) {
     Buffer<double> DivXi_dd{4, 4};
     Buffer<double> R_Uddd{4, 4, 4, 4};
     Buffer<double> R_dd{4, 4};
+    Buffer<double> F_dd{4, 4};
+    Buffer<double> DF_ddd{4, 4, 4};
+    Buffer<double> F_Ud{4, 4};
+    Buffer<double> DF_dUd{4, 4, 4};
+    Buffer<double> DivF_d{4};
 
-    compute_all(z, Q, DQ, DDQ, L, mu, g_dd, g_UU, Dg_ddd, Dg_dUU, DDg_dddd, Gamma_Udd, DGamma_dUdd,
-                Xi_U, Xi_d, DXi_dU, DXi_dd, DivXi_dd, R_Uddd, R_dd);
-    return std::tuple{g_dd, g_UU, Dg_ddd, Dg_dUU, DDg_dddd, Gamma_Udd, DGamma_dUdd,
-                      Xi_U, Xi_d, DXi_dU, DXi_dd, DivXi_dd, R_Uddd,    R_dd};
+    compute_all(z, Q, DQ, DDQ, Psi, DPsi, DDPsi, L, mu, g_dd, g_UU, Dg_ddd, Dg_dUU, DDg_dddd,
+                Gamma_Udd, DGamma_dUdd, Xi_U, Xi_d, DXi_dU, DXi_dd, DivXi_dd, R_Uddd, R_dd, F_dd,
+                DF_ddd, F_Ud, DF_dUd, DivF_d);
+    return std::tuple{g_dd, g_UU,   Dg_ddd, Dg_dUU, DDg_dddd, Gamma_Udd, DGamma_dUdd,
+                      Xi_U, Xi_d,   DXi_dU, DXi_dd, DivXi_dd, R_Uddd,    R_dd,
+                      F_dd, DF_ddd, F_Ud,   DF_dUd, DivF_d};
 }
 
 template <size_t... Ns>
@@ -158,7 +179,8 @@ auto check_equal(Buffer<double> const& predicted, Buffer<double> const& expected
 
 TEST_CASE("compute_all") {
     auto [g_dd, g_UU, Dg_ddd, Dg_dUU, DDg_dddd, Gamma_Udd, DGamma_dUdd, Xi_U, Xi_d, DXi_dU, DXi_dd,
-          DivXi_dd, R_Uddd, R_dd] = run_compute_all("test/input_01.dat");
+          DivXi_dd, R_Uddd, R_dd, F_dd, DF_ddd, F_Ud, DF_dUd, DivF_d] =
+        run_compute_all("test/input_01.dat");
     // clang-format off
     SUBCASE("g_dd") { check_equal<4, 4>(g_dd, load_tensor<4, 4>("test/g_dd/output_01.dat")); }
     SUBCASE("g_UU") { check_equal<4, 4>(g_UU, load_tensor<4, 4>("test/g_UU/output_01.dat")); }
@@ -174,6 +196,11 @@ TEST_CASE("compute_all") {
     SUBCASE("DivXi_dd") { check_equal<4, 4>(DivXi_dd, load_tensor<4, 4>("test/DivXi_dd/output_01.dat")); }
     SUBCASE("R_Uddd") { check_equal<4, 4, 4, 4>(R_Uddd, load_tensor<4, 4, 4, 4>("test/R_Uddd/output_01.dat")); }
     SUBCASE("R_dd") { check_equal<4, 4>(R_dd, load_tensor<4, 4>("test/R_dd/output_01.dat")); }
+    SUBCASE("F_dd") { check_equal<4, 4>(F_dd, load_tensor<4, 4>("test/F_dd/output_01.dat")); }
+    SUBCASE("DF_ddd") { check_equal<4, 4, 4>(DF_ddd, load_tensor<4, 4, 4>("test/DF_ddd/output_01.dat")); }
+    SUBCASE("F_Ud") { check_equal<4, 4>(F_Ud, load_tensor<4, 4>("test/F_Ud/output_01.dat")); }
+    SUBCASE("DF_dUd") { check_equal<4, 4, 4>(DF_dUd, load_tensor<4, 4, 4>("test/DF_dUd/output_01.dat")); }
+    SUBCASE("DivF_d") { check_equal<4>(DivF_d, load_tensor<4>("test/DivF_d/output_01.dat")); }
     // clang-format on
 }
 
