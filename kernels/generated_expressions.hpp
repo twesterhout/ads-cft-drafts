@@ -88,3 +88,26 @@
     dEsTiNaTiOn(3, 0, 3) = 2*DPsi(1) + DDPsi(1, 1)*(-1 + z); \
     dEsTiNaTiOn(3, 1, 0) = -DPsi(0) - DDPsi(0, 1)*(-1 + z); \
     dEsTiNaTiOn(3, 3, 0) = -2*DPsi(1) - DDPsi(1, 1)*(-1 + z)
+
+#define FROM_EXPRESSIONS_DPhi_d(dEsTiNaTiOn) \
+    dEsTiNaTiOn(1) = DPhi(0)*z; \
+    dEsTiNaTiOn(3) = Phi + DPhi(1)*z
+
+#define FROM_EXPRESSIONS_DDPhi_dd(dEsTiNaTiOn) \
+    dEsTiNaTiOn(1, 1) = DDPhi(0, 0)*z; \
+    dEsTiNaTiOn(1, 3) = DPhi(0) + DDPhi(0, 1)*z; \
+    dEsTiNaTiOn(3, 1) = DPhi(0) + DDPhi(0, 1)*z; \
+    dEsTiNaTiOn(3, 3) = 2*DPhi(1) + DDPhi(1, 1)*z
+
+#define FROM_EXPRESSIONS_DChi_d(dEsTiNaTiOn) \
+    dEsTiNaTiOn(1) = DChi(0)*z; \
+    dEsTiNaTiOn(3) = Chi + DChi(1)*z
+
+#define FROM_EXPRESSIONS_DDChi_dd(dEsTiNaTiOn) \
+    dEsTiNaTiOn(1, 1) = DDChi(0, 0)*z; \
+    dEsTiNaTiOn(1, 3) = DChi(0) + DDChi(0, 1)*z; \
+    dEsTiNaTiOn(3, 1) = DChi(0) + DDChi(0, 1)*z; \
+    dEsTiNaTiOn(3, 3) = 2*DChi(1) + DDChi(1, 1)*z
+
+#define FROM_EXPRESSIONS_V(dEsTiNaTiOn) \
+    dEsTiNaTiOn = (-((Chi * Chi)*(z * z)) - (Phi * Phi)*(z * z))/(L * L)

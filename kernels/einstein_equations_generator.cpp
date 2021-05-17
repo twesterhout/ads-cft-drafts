@@ -218,6 +218,65 @@ auto make_DivF_d(Func F_Ud, Func DF_dUd, Func Gamma_Udd) -> Func {
     return output;
 }
 
+auto make_wave_equation(Func Df_d, Func DDf_dd, Func g_UU, Func Dg_dUU, Func Gamma_Udd, Expr V)
+    -> Expr {
+    RDom lambda{0, 4, "lambda"}, mu{0, 4, "mu"}, rho{0, 4, "rho"};
+    return sum(rho, sum(mu, Dg_dUU(rho, rho, mu) * Df_d(mu) + g_UU(rho, mu) * DDf_dd(rho, mu) +
+                                sum(lambda,
+                                    Gamma_Udd(rho, rho, lambda) * g_UU(lambda, mu) * Df_d(mu)))) -
+           V;
+}
+
+auto make_V(Expr z, Expr Phi, Expr Chi, Expr L) -> Expr {
+    Expr FROM_EXPRESSIONS_V(V);
+    return V;
+}
+
+auto make_DPhi_d(Expr z, Expr Phi, Func DPhi) -> Func {
+    Var mu{"mu"};
+    Func output{"DPhi_d"};
+    output(mu) = cast<double>(0);
+    FROM_EXPRESSIONS_DPhi_d(output);
+    return output;
+}
+
+auto make_DDPhi_dd(Expr z, Expr Phi, Func DPhi, Func DDPhi) -> Func {
+    Var mu{"mu"}, nu{"nu"};
+    Func output{"DDPhi_dd"};
+    output(mu, nu) = cast<double>(0);
+    FROM_EXPRESSIONS_DDPhi_dd(output);
+    return output;
+}
+
+auto make_DChi_d(Expr z, Expr Chi, Func DChi) -> Func {
+    Var mu{"mu"};
+    Func output{"DChi_d"};
+    output(mu) = cast<double>(0);
+    FROM_EXPRESSIONS_DChi_d(output);
+    return output;
+}
+
+auto make_DDChi_dd(Expr z, Expr Chi, Func DChi, Func DDChi) -> Func {
+    Var mu{"mu"}, nu{"nu"};
+    Func output{"DDChi_dd"};
+    output(mu, nu) = cast<double>(0);
+    FROM_EXPRESSIONS_DDChi_dd(output);
+    return output;
+}
+
+auto make_G_dd(Func R_dd, Func DPhi_d, Func DChi_d, Func F_dd, Func F_Ud, Func F_UU, Func g_dd,
+               Expr V, Expr L) -> Func {
+    Var mu{"mu"}, nu{"nu"};
+    RDom lambda{0, 4, "lambda"}, rho{0, 4, "rho"};
+    Func output{"G_dd"};
+    output(mu, nu) =
+        R_dd(mu, nu) + (3 / (L * L) + V) * g_dd(mu, nu) -
+        (DPhi_d(mu) * DPhi_d(nu) + DChi_d(mu) * DChi_d(nu)) -
+        (sum(lambda, -F_dd(mu, lambda) * F_Ud(lambda, nu)) -
+         g_dd(mu, nu) / 4 * sum(lambda, sum(rho, F_dd(lambda, rho) * F_UU(lambda, rho))));
+    return output;
+}
+
 // auto covariant_derivative(Func v_d, Func Dv_dd, Func Gamma_Udd) -> Func {
 //     Var mu{"mu"}, nu{"nu"};
 //     RDom lambda{0, 4, "lambda"};
@@ -261,6 +320,12 @@ class compute_all_generator : public Halide::Generator<compute_all_generator> {
     Input<double> Psi{"Psi"};
     Input<Buffer<double>> DPsi{"DPsi", 1};
     Input<Buffer<double>> DDPsi{"DDPsi", 2};
+    Input<double> Phi{"Phi"};
+    Input<Buffer<double>> DPhi{"DPhi", 1};
+    Input<Buffer<double>> DDPhi{"DDPhi", 2};
+    Input<double> Chi{"Chi"};
+    Input<Buffer<double>> DChi{"DChi", 1};
+    Input<Buffer<double>> DDChi{"DDChi", 2};
     Input<double> length{"length"};
     Input<double> chemical_potential{"chemical_potential"};
 
@@ -283,6 +348,9 @@ class compute_all_generator : public Halide::Generator<compute_all_generator> {
     Output<Buffer<double>> F_Ud{"F_Ud", 2};
     Output<Buffer<double>> DF_dUd{"DF_dUd", 3};
     Output<Buffer<double>> DivF_d{"DivF_d", 1};
+    Output<Buffer<double>> EOM_Phi{"EOM_Phi", 1};
+    Output<Buffer<double>> EOM_Chi{"EOM_Chi", 1};
+    Output<Buffer<double>> G_dd{"G_dd", 2};
 
     void generate() {
         g_dd = make_g_dd(z, Q, length, chemical_potential);
@@ -315,6 +383,22 @@ class compute_all_generator : public Halide::Generator<compute_all_generator> {
         F_Ud = make_F_Ud(F_dd, g_UU);
         DF_dUd = make_DF_dUd(F_dd, DF_ddd, g_UU, Dg_dUU);
         DivF_d = make_DivF_d(F_Ud, DF_dUd, Gamma_Udd);
+        auto V = make_V(z, Phi, Chi, length);
+        auto DPhi_d = make_DPhi_d(z, Phi, DPhi);
+        auto DDPhi_dd = make_DDPhi_dd(z, Phi, DPhi, DDPhi);
+        auto DChi_d = make_DChi_d(z, Chi, DChi);
+        auto DDChi_dd = make_DDChi_dd(z, Chi, DChi, DDChi);
+        {
+            EOM_Phi(Var{"temp"}) = cast<double>(0);
+            EOM_Phi(0) = make_wave_equation(DPhi_d, DDPhi_dd, g_UU, Dg_dUU, Gamma_Udd, V);
+        }
+        {
+            EOM_Chi(Var{"temp"}) = cast<double>(0);
+            EOM_Chi(0) = make_wave_equation(DChi_d, DDChi_dd, g_UU, Dg_dUU, Gamma_Udd, V);
+        }
+
+        auto F_UU = make_F_UU(F_Ud, g_UU);
+        G_dd = make_G_dd(R_dd, DPhi_d, DChi_d, F_dd, F_Ud, F_UU, g_dd, V, length);
 
         set_bounds(g_dd);
         set_bounds(g_UU);
@@ -335,6 +419,7 @@ class compute_all_generator : public Halide::Generator<compute_all_generator> {
         set_bounds(F_Ud);
         set_bounds(DF_dUd);
         set_bounds(DivF_d);
+        set_bounds(G_dd);
     }
 };
 
