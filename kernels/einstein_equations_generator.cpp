@@ -5,6 +5,24 @@
 
 using namespace Halide;
 
+auto operator*(double a, Expr b) -> Expr {
+    auto const float_a = static_cast<float>(a);
+    if (float_a == a) { return float_a * b; }
+    throw std::runtime_error{"inexact conversion"};
+}
+
+auto operator+(double a, Expr b) -> Expr {
+    auto const float_a = static_cast<float>(a);
+    if (float_a == a) { return float_a + b; }
+    throw std::runtime_error{"inexact conversion"};
+}
+
+auto operator-(double a, Expr b) -> Expr {
+    auto const float_a = static_cast<float>(a);
+    if (float_a == a) { return float_a - b; }
+    throw std::runtime_error{"inexact conversion"};
+}
+
 auto make_g_dd(Expr z, Func Q, Expr L, Expr mu) -> Func {
     Var _mu{"mu"}, _nu{"nu"};
     Func output{"g_dd"};

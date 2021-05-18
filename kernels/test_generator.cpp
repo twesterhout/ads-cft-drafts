@@ -258,7 +258,7 @@ TEST_CASE("compute_all") {
     SUBCASE("DF_ddd") { check_equal<4, 4, 4>(DF_ddd, load_tensor<4, 4, 4>("test/DF_ddd/output_01.dat")); }
     SUBCASE("F_Ud") { check_equal<4, 4>(F_Ud, load_tensor<4, 4>("test/F_Ud/output_01.dat")); }
     SUBCASE("DF_dUd") { check_equal<4, 4, 4>(DF_dUd, load_tensor<4, 4, 4>("test/DF_dUd/output_01.dat")); }
-    SUBCASE("DivF_d") { check_equal<4>(DivF_d, load_tensor<4>("test/DivF_d/output_01.dat")); }
+    SUBCASE("EOM_Psi") { check_equal<4>(DivF_d, load_tensor<4>("test/EOM_Psi/output_01.dat")); }
     SUBCASE("EOM_Phi") { check_equal<1>(EOM_Phi, load_tensor<1>("test/EOM_Phi/output_01.dat")); }
     SUBCASE("EOM_Chi") { check_equal<1>(EOM_Chi, load_tensor<1>("test/EOM_Chi/output_01.dat")); }
     SUBCASE("G_dd") { check_equal<4, 4>(G_dd, load_tensor<4, 4>("test/G_dd/output_01.dat")); }
