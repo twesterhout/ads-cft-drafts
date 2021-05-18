@@ -236,18 +236,28 @@ auto make_DivF_d(Func F_Ud, Func DF_dUd, Func Gamma_Udd) -> Func {
     return output;
 }
 
-auto make_wave_equation(Func Df_d, Func DDf_dd, Func g_UU, Func Dg_dUU, Func Gamma_Udd, Expr V)
+auto make_wave_equation(Func Df_d, Func DDf_dd, Func g_UU, Func Dg_dUU, Func Gamma_Udd, Expr DV_f)
     -> Expr {
     RDom lambda{0, 4, "lambda"}, mu{0, 4, "mu"}, rho{0, 4, "rho"};
     return sum(rho, sum(mu, Dg_dUU(rho, rho, mu) * Df_d(mu) + g_UU(rho, mu) * DDf_dd(rho, mu) +
                                 sum(lambda,
                                     Gamma_Udd(rho, rho, lambda) * g_UU(lambda, mu) * Df_d(mu)))) -
-           V;
+           DV_f;
 }
 
 auto make_V(Expr z, Expr Phi, Expr Chi, Expr L) -> Expr {
     Expr FROM_EXPRESSIONS_V(V);
     return V;
+}
+
+auto make_DV_Phi(Expr z, Expr Phi, Expr Chi, Expr L) -> Expr {
+    Expr FROM_EXPRESSIONS_DV_Phi(output);
+    return output;
+}
+
+auto make_DV_Chi(Expr z, Expr Phi, Expr Chi, Expr L) -> Expr {
+    Expr FROM_EXPRESSIONS_DV_Chi(output);
+    return output;
 }
 
 auto make_DPhi_d(Expr z, Expr Phi, Func DPhi) -> Func {
@@ -401,21 +411,23 @@ class compute_all_generator : public Halide::Generator<compute_all_generator> {
         F_Ud = make_F_Ud(F_dd, g_UU);
         DF_dUd = make_DF_dUd(F_dd, DF_ddd, g_UU, Dg_dUU);
         DivF_d = make_DivF_d(F_Ud, DF_dUd, Gamma_Udd);
-        auto V = make_V(z, Phi, Chi, length);
         auto DPhi_d = make_DPhi_d(z, Phi, DPhi);
         auto DDPhi_dd = make_DDPhi_dd(z, Phi, DPhi, DDPhi);
         auto DChi_d = make_DChi_d(z, Chi, DChi);
         auto DDChi_dd = make_DDChi_dd(z, Chi, DChi, DDChi);
         {
             EOM_Phi(Var{"temp"}) = cast<double>(0);
-            EOM_Phi(0) = make_wave_equation(DPhi_d, DDPhi_dd, g_UU, Dg_dUU, Gamma_Udd, V);
+            EOM_Phi(0) = make_wave_equation(DPhi_d, DDPhi_dd, g_UU, Dg_dUU, Gamma_Udd,
+                                            make_DV_Phi(z, Phi, Chi, length));
         }
         {
             EOM_Chi(Var{"temp"}) = cast<double>(0);
-            EOM_Chi(0) = make_wave_equation(DChi_d, DDChi_dd, g_UU, Dg_dUU, Gamma_Udd, V);
+            EOM_Chi(0) = make_wave_equation(DChi_d, DDChi_dd, g_UU, Dg_dUU, Gamma_Udd,
+                                            make_DV_Chi(z, Phi, Chi, length));
         }
 
         auto F_UU = make_F_UU(F_Ud, g_UU);
+        auto V = make_V(z, Phi, Chi, length);
         G_dd = make_G_dd(R_dd, DPhi_d, DChi_d, F_dd, F_Ud, F_UU, g_dd, V, length);
 
         set_bounds(g_dd);
