@@ -5,23 +5,21 @@
 
 using namespace Halide;
 
-auto operator*(double a, Expr b) -> Expr {
-    auto const float_a = static_cast<float>(a);
-    if (float_a == a) { return float_a * b; }
-    throw std::runtime_error{"inexact conversion"};
+auto to_float_checked(double x) -> float {
+    auto const float_x = static_cast<float>(x);
+    if (static_cast<double>(float_x) != x) {
+        throw std::runtime_error{"inexact conversion: " + std::to_string(x) +
+                                 " cannot be exactly represented by float"};
+    }
+    return float_x;
 }
 
-auto operator+(double a, Expr b) -> Expr {
-    auto const float_a = static_cast<float>(a);
-    if (float_a == a) { return float_a + b; }
-    throw std::runtime_error{"inexact conversion"};
-}
-
-auto operator-(double a, Expr b) -> Expr {
-    auto const float_a = static_cast<float>(a);
-    if (float_a == a) { return float_a - b; }
-    throw std::runtime_error{"inexact conversion"};
-}
+auto operator*(double a, Expr b) -> Expr { return to_float_checked(a) * b; }
+auto operator*(Expr b, double a) -> Expr { return b * to_float_checked(a); }
+auto operator/(double a, Expr b) -> Expr { return to_float_checked(a) / b; }
+auto operator/(Expr b, double a) -> Expr { return b / to_float_checked(a); }
+auto operator+(double a, Expr b) -> Expr { return to_float_checked(a) + b; }
+auto operator-(double a, Expr b) -> Expr { return to_float_checked(a) - b; }
 
 auto make_g_dd(Expr z, Func Q, Expr L, Expr mu) -> Func {
     Var _mu{"mu"}, _nu{"nu"};
@@ -44,6 +42,22 @@ auto make_DDg_dddd(Expr z, Func Q, Func DQ, Func DDQ, Expr L, Expr mu) -> Func {
     Func output{"DDg_dddd"};
     output(_kappa, _lambda, _mu, _nu) = cast<double>(0);
     FROM_EXPRESSIONS_DDg_dddd(output);
+    return output;
+}
+
+auto make_Gamma_Udd_ref(Expr z, Func Q, Func DQ, Expr L, Expr mu) -> Func {
+    Var _rho{"rho"}, _mu{"mu"}, _nu{"nu"};
+    Func output{"Gamma_Udd_ref"};
+    output(_rho, _mu, _nu) = cast<double>(0);
+    FROM_EXPRESSIONS_Gamma_Udd_ref(output);
+    return output;
+}
+
+auto make_DGamma_dUdd_ref(Expr z, Func Q, Func DQ, Func DDQ, Expr L, Expr mu) -> Func {
+    Var _lambda{"lambda"}, _rho{"rho"}, _mu{"mu"}, _nu{"nu"};
+    Func output{"DGamma_dUdd_ref"};
+    output(_lambda, _rho, _mu, _nu) = cast<double>(0);
+    FROM_EXPRESSIONS_DGamma_dUdd_ref(output);
     return output;
 }
 
@@ -144,6 +158,7 @@ auto make_DivXi_dd(Func Xi_d, Func DXi_dd, Func Gamma_Udd) -> Func {
     return output;
 }
 
+#if 0
 auto make_Q_ref() -> Func {
     Var i;
     Func output;
@@ -165,6 +180,7 @@ auto make_DDQ_ref() -> Func {
     output(i, j, k) = cast<double>(0);
     return output;
 }
+#endif
 
 auto make_R_Uddd(Func Gamma_Udd, Func DGamma_dUdd) -> Func {
     Var mu{"mu"}, nu{"nu"}, rho{"rho"}, sigma{"sigma"};
@@ -185,7 +201,7 @@ auto make_R_dd(Func R_Uddd) -> Func {
     return output;
 }
 
-auto make_F_dd(Expr z, Expr Psi, Func DPsi) -> Func {
+auto make_F_dd(Expr z, Func Q, Func DQ) -> Func {
     Var _mu{"mu"}, _nu{"nu"};
     Func output{"F_dd"};
     output(_mu, _nu) = cast<double>(0);
@@ -193,7 +209,7 @@ auto make_F_dd(Expr z, Expr Psi, Func DPsi) -> Func {
     return output;
 }
 
-auto make_DF_ddd(Expr z, Expr Psi, Func DPsi, Func DDPsi) -> Func {
+auto make_DF_ddd(Expr z, Func Q, Func DQ, Func DDQ) -> Func {
     Var mu{"mu"}, nu{"nu"}, rho{"rho"};
     Func output{"DF_ddd"};
     output(mu, nu, rho) = cast<double>(0);
@@ -245,22 +261,22 @@ auto make_wave_equation(Func Df_d, Func DDf_dd, Func g_UU, Func Dg_dUU, Func Gam
            DV_f;
 }
 
-auto make_V(Expr z, Expr Phi, Expr Chi, Expr L) -> Expr {
+auto make_V(Expr z, Func Q, Expr L) -> Expr {
     Expr FROM_EXPRESSIONS_V(V);
     return V;
 }
 
-auto make_DV_Phi(Expr z, Expr Phi, Expr Chi, Expr L) -> Expr {
+auto make_DV_Phi(Expr z, Func Q, Expr L) -> Expr {
     Expr FROM_EXPRESSIONS_DV_Phi(output);
     return output;
 }
 
-auto make_DV_Chi(Expr z, Expr Phi, Expr Chi, Expr L) -> Expr {
+auto make_DV_Chi(Expr z, Func Q, Expr L) -> Expr {
     Expr FROM_EXPRESSIONS_DV_Chi(output);
     return output;
 }
 
-auto make_DPhi_d(Expr z, Expr Phi, Func DPhi) -> Func {
+auto make_DPhi_d(Expr z, Func Q, Func DQ) -> Func {
     Var mu{"mu"};
     Func output{"DPhi_d"};
     output(mu) = cast<double>(0);
@@ -268,7 +284,7 @@ auto make_DPhi_d(Expr z, Expr Phi, Func DPhi) -> Func {
     return output;
 }
 
-auto make_DDPhi_dd(Expr z, Expr Phi, Func DPhi, Func DDPhi) -> Func {
+auto make_DDPhi_dd(Expr z, Func Q, Func DQ, Func DDQ) -> Func {
     Var mu{"mu"}, nu{"nu"};
     Func output{"DDPhi_dd"};
     output(mu, nu) = cast<double>(0);
@@ -276,7 +292,7 @@ auto make_DDPhi_dd(Expr z, Expr Phi, Func DPhi, Func DDPhi) -> Func {
     return output;
 }
 
-auto make_DChi_d(Expr z, Expr Chi, Func DChi) -> Func {
+auto make_DChi_d(Expr z, Func Q, Func DQ) -> Func {
     Var mu{"mu"};
     Func output{"DChi_d"};
     output(mu) = cast<double>(0);
@@ -284,7 +300,7 @@ auto make_DChi_d(Expr z, Expr Chi, Func DChi) -> Func {
     return output;
 }
 
-auto make_DDChi_dd(Expr z, Expr Chi, Func DChi, Func DDChi) -> Func {
+auto make_DDChi_dd(Expr z, Func Q, Func DQ, Func DDQ) -> Func {
     Var mu{"mu"}, nu{"nu"};
     Func output{"DDChi_dd"};
     output(mu, nu) = cast<double>(0);
@@ -345,15 +361,19 @@ class compute_all_generator : public Halide::Generator<compute_all_generator> {
     Input<Buffer<double>> Q{"Q", 1};
     Input<Buffer<double>> DQ{"DQ", 2};
     Input<Buffer<double>> DDQ{"DDQ", 3};
-    Input<double> Psi{"Psi"};
-    Input<Buffer<double>> DPsi{"DPsi", 1};
-    Input<Buffer<double>> DDPsi{"DDPsi", 2};
-    Input<double> Phi{"Phi"};
-    Input<Buffer<double>> DPhi{"DPhi", 1};
-    Input<Buffer<double>> DDPhi{"DDPhi", 2};
-    Input<double> Chi{"Chi"};
-    Input<Buffer<double>> DChi{"DChi", 1};
-    Input<Buffer<double>> DDChi{"DDChi", 2};
+
+    // Input<Buffer<double>> Q{"Q", 1};
+    // Input<Buffer<double>> DQ{"DQ", 2};
+    // Input<Buffer<double>> DDQ{"DDQ", 3};
+    // Input<double> Psi{"Psi"};
+    // Input<Buffer<double>> DPsi{"DPsi", 1};
+    // Input<Buffer<double>> DDPsi{"DDPsi", 2};
+    // Input<double> Phi{"Phi"};
+    // Input<Buffer<double>> DPhi{"DPhi", 1};
+    // Input<Buffer<double>> DDPhi{"DDPhi", 2};
+    // Input<double> Chi{"Chi"};
+    // Input<Buffer<double>> DChi{"DChi", 1};
+    // Input<Buffer<double>> DDChi{"DDChi", 2};
     Input<double> length{"length"};
     Input<double> chemical_potential{"chemical_potential"};
 
@@ -389,15 +409,15 @@ class compute_all_generator : public Halide::Generator<compute_all_generator> {
         Gamma_Udd = make_Gamma_Udd(g_UU, Dg_ddd);
         DGamma_dUdd = make_DGamma_dUdd(g_UU, Dg_dUU, Dg_ddd, DDg_dddd);
 
-        auto Q_ref = make_Q_ref();
-        auto DQ_ref = make_DQ_ref();
-        auto DDQ_ref = make_DDQ_ref();
-        auto g_UU_ref = make_g_UU(z, Q_ref, length, chemical_potential);
-        auto Dg_ddd_ref = make_Dg_ddd(z, Q_ref, DQ_ref, length, chemical_potential);
-        auto Dg_dUU_ref = make_Dg_dUU(z, Q_ref, DQ_ref, length, chemical_potential);
-        auto DDg_dddd_ref = make_DDg_dddd(z, Q_ref, DQ_ref, DDQ_ref, length, chemical_potential);
-        auto Gamma_Udd_ref = make_Gamma_Udd(g_UU_ref, Dg_ddd_ref);
-        auto DGamma_dUdd_ref = make_DGamma_dUdd(g_UU_ref, Dg_dUU_ref, Dg_ddd_ref, DDg_dddd_ref);
+        // auto Q_ref = make_Q_ref();
+        // auto DQ_ref = make_DQ_ref();
+        // auto DDQ_ref = make_DDQ_ref();
+        // auto g_UU_ref = make_g_UU(z, Q_ref, length, chemical_potential);
+        // auto Dg_ddd_ref = make_Dg_ddd(z, Q_ref, DQ_ref, length, chemical_potential);
+        // auto Dg_dUU_ref = make_Dg_dUU(z, Q_ref, DQ_ref, length, chemical_potential);
+        // auto DDg_dddd_ref = make_DDg_dddd(z, Q_ref, DQ_ref, DDQ_ref, length, chemical_potential);
+        auto Gamma_Udd_ref = make_Gamma_Udd_ref(z, Q, DQ, length, chemical_potential);
+        auto DGamma_dUdd_ref = make_DGamma_dUdd_ref(z, Q, DQ, DDQ, length, chemical_potential);
 
         Xi_U = make_Xi_U(g_UU, Gamma_Udd, Gamma_Udd_ref);
         Xi_d = make_Xi_d(g_dd, Xi_U);
@@ -406,28 +426,28 @@ class compute_all_generator : public Halide::Generator<compute_all_generator> {
         DivXi_dd = make_DivXi_dd(Xi_d, DXi_dd, Gamma_Udd);
         R_Uddd = make_R_Uddd(Gamma_Udd, DGamma_dUdd);
         R_dd = make_R_dd(R_Uddd);
-        F_dd = make_F_dd(z, Psi, DPsi);
-        DF_ddd = make_DF_ddd(z, Psi, DPsi, DDPsi);
+        F_dd = make_F_dd(z, Q, DQ);
+        DF_ddd = make_DF_ddd(z, Q, DQ, DDQ);
         F_Ud = make_F_Ud(F_dd, g_UU);
         DF_dUd = make_DF_dUd(F_dd, DF_ddd, g_UU, Dg_dUU);
         DivF_d = make_DivF_d(F_Ud, DF_dUd, Gamma_Udd);
-        auto DPhi_d = make_DPhi_d(z, Phi, DPhi);
-        auto DDPhi_dd = make_DDPhi_dd(z, Phi, DPhi, DDPhi);
-        auto DChi_d = make_DChi_d(z, Chi, DChi);
-        auto DDChi_dd = make_DDChi_dd(z, Chi, DChi, DDChi);
+        auto DPhi_d = make_DPhi_d(z, Q, DQ);
+        auto DDPhi_dd = make_DDPhi_dd(z, Q, DQ, DDQ);
+        auto DChi_d = make_DChi_d(z, Q, DQ);
+        auto DDChi_dd = make_DDChi_dd(z, Q, DQ, DDQ);
         {
             EOM_Phi(Var{"temp"}) = cast<double>(0);
             EOM_Phi(0) = make_wave_equation(DPhi_d, DDPhi_dd, g_UU, Dg_dUU, Gamma_Udd,
-                                            make_DV_Phi(z, Phi, Chi, length));
+                                            make_DV_Phi(z, Q, length));
         }
         {
             EOM_Chi(Var{"temp"}) = cast<double>(0);
             EOM_Chi(0) = make_wave_equation(DChi_d, DDChi_dd, g_UU, Dg_dUU, Gamma_Udd,
-                                            make_DV_Chi(z, Phi, Chi, length));
+                                            make_DV_Chi(z, Q, length));
         }
 
         auto F_UU = make_F_UU(F_Ud, g_UU);
-        auto V = make_V(z, Phi, Chi, length);
+        auto V = make_V(z, Q, length);
         G_dd = make_G_dd(R_dd, DPhi_d, DChi_d, F_dd, F_Ud, F_UU, g_dd, V, length);
 
         set_bounds(g_dd);
@@ -450,6 +470,35 @@ class compute_all_generator : public Halide::Generator<compute_all_generator> {
         set_bounds(DF_dUd);
         set_bounds(DivF_d);
         set_bounds(G_dd);
+    }
+};
+
+class einstein_equations_generator : public Halide::Generator<einstein_equations_generator> {
+  public:
+    // Input<Buffer<double>> t{"t", 1};
+    // Input<Buffer<double>> x{"x", 1};
+    // Input<Buffer<double>> y{"y", 1};
+    Input<Buffer<double>> grid_z{"z", 1};
+    Input<Buffer<double>> q{"q", 2};
+    Input<Buffer<double>> Dq{"Dq", 3};
+    Input<double> length{"length"};
+    Input<double> chemical_potential{"chemical_potential"};
+    Output<Buffer<double>> output{"output", 2};
+
+    void generate() {
+        Var i;
+
+        Expr z = grid_z(i);
+        // auto g_dd = make_g_dd(z, Q, length, chemical_potential);
+        // Func g_dd(i, mu, nu);
+
+        // g_dd = make_g_dd(z, Q, length, chemical_potential);
+        // g_UU = make_g_UU(z, Q, length, chemical_potential);
+        // Dg_ddd = make_Dg_ddd(z, Q, DQ, length, chemical_potential);
+        // Dg_dUU = make_Dg_dUU(z, Q, DQ, length, chemical_potential);
+        // DDg_dddd = make_DDg_dddd(z, Q, DQ, DDQ, length, chemical_potential);
+        // Gamma_Udd = make_Gamma_Udd(g_UU, Dg_ddd);
+        // DGamma_dUdd = make_DGamma_dUdd(g_UU, Dg_dUU, Dg_ddd, DDg_dddd);
     }
 };
 

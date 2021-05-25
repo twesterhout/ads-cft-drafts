@@ -4,123 +4,147 @@
 #pragma once
 
 #define FROM_EXPRESSIONS_g_dd(dEsTiNaTiOn) \
-    dEsTiNaTiOn(0, 0) = (Q(0)*(-1. + z)*(L * L)*(1. + z + z * z - 0.5*(mu * mu)*(z * z * z)))/(z * z); \
-    dEsTiNaTiOn(1, 1) = (Q(1)*(L * L))/(z * z); \
-    dEsTiNaTiOn(1, 3) = Q(1)*Q(4)*(L * L); \
-    dEsTiNaTiOn(2, 2) = (Q(2)*(L * L))/(z * z); \
-    dEsTiNaTiOn(3, 1) = Q(1)*Q(4)*(L * L); \
-    dEsTiNaTiOn(3, 3) = ((L * L)*(Q(1)*(Q(4) * Q(4))*(z * z * z * z) + (2.*Q(3))/(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))))/(z * z)
+    dEsTiNaTiOn(0, 0) = (-1. + z)*(L * L)*(1. + z + z * z - 0.5*(mu * mu)*(z * z * z))*1. / (z * z)*Q(0); \
+    dEsTiNaTiOn(1, 1) = (L * L)*1. / (z * z)*Q(1); \
+    dEsTiNaTiOn(1, 3) = (L * L)*Q(1)*Q(4); \
+    dEsTiNaTiOn(2, 2) = (L * L)*1. / (z * z)*Q(2); \
+    dEsTiNaTiOn(3, 1) = (L * L)*Q(1)*Q(4); \
+    dEsTiNaTiOn(3, 3) = (L * L)*1. / (z * z)*((Q(4) * Q(4))*(z * z * z * z)*Q(1) + 2.*1. / (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*Q(3))
 
 #define FROM_EXPRESSIONS_g_UU(dEsTiNaTiOn) \
-    dEsTiNaTiOn(0, 0) = (-2.*(z * z))/(Q(0)*(-1. + z)*(L * L)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))); \
-    dEsTiNaTiOn(1, 1) = (0.5*(z * z)*(2.*Q(3) + 2.*Q(1)*(Q(4) * Q(4))*(z * z * z * z) - 2.*Q(1)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) - 1.*Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) + Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)))/(Q(1)*Q(3)*(L * L)); \
-    dEsTiNaTiOn(1, 3) = (-0.5*Q(4)*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z))/(Q(3)*(L * L)); \
-    dEsTiNaTiOn(2, 2) = (z * z)/(Q(2)*(L * L)); \
-    dEsTiNaTiOn(3, 1) = (-0.5*Q(4)*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z))/(Q(3)*(L * L)); \
-    dEsTiNaTiOn(3, 3) = (0.5*(-1. + z)*(z * z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z)))/(Q(3)*(L * L))
+    dEsTiNaTiOn(0, 0) = -2.*(z * z)*1. / (-1. + z)*1. / (L * L)*1. / (-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*1. / Q(0); \
+    dEsTiNaTiOn(1, 1) = 0.5*(z * z)*1. / (L * L)*1. / Q(1)*1. / Q(3)*(2.*(Q(4) * Q(4))*(z * z * z * z)*Q(1) - 2.*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*Q(1) - 1.*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*Q(1) + (mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)*Q(1) + 2.*Q(3)); \
+    dEsTiNaTiOn(1, 3) = -0.5*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z)*1. / (L * L)*1. / Q(3)*Q(4); \
+    dEsTiNaTiOn(2, 2) = (z * z)*1. / (L * L)*1. / Q(2); \
+    dEsTiNaTiOn(3, 1) = -0.5*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z)*1. / (L * L)*1. / Q(3)*Q(4); \
+    dEsTiNaTiOn(3, 3) = 0.5*(-1. + z)*(z * z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*1. / (L * L)*1. / Q(3)
 
 #define FROM_EXPRESSIONS_Dg_ddd(dEsTiNaTiOn) \
-    dEsTiNaTiOn(1, 0, 0) = (DQ(0, 0)*(-1. + z)*(L * L)*(1. + z + z * z - 0.5*(mu * mu)*(z * z * z)))/(z * z); \
-    dEsTiNaTiOn(1, 1, 1) = (DQ(0, 1)*(L * L))/(z * z); \
-    dEsTiNaTiOn(1, 1, 3) = (DQ(0, 4)*Q(1) + DQ(0, 1)*Q(4))*(L * L); \
-    dEsTiNaTiOn(1, 2, 2) = (DQ(0, 2)*(L * L))/(z * z); \
-    dEsTiNaTiOn(1, 3, 1) = (DQ(0, 4)*Q(1) + DQ(0, 1)*Q(4))*(L * L); \
-    dEsTiNaTiOn(1, 3, 3) = ((L * L)*(2.*DQ(0, 4)*Q(1)*Q(4)*(z * z * z * z) + DQ(0, 1)*(Q(4) * Q(4))*(z * z * z * z) + (2.*DQ(0, 3))/(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))))/(z * z); \
-    dEsTiNaTiOn(3, 0, 0) = (0.5*(L * L)*(Q(0)*(4. + (2. + mu * mu)*(z * z * z) - 2.*(mu * mu)*(z * z * z * z)) + DQ(1, 0)*z*(-2. + (2. + mu * mu)*(z * z * z) - 1.*(mu * mu)*(z * z * z * z))))/(z * z * z); \
-    dEsTiNaTiOn(3, 1, 1) = ((-2.*Q(1) + DQ(1, 1)*z)*(L * L))/(z * z * z); \
-    dEsTiNaTiOn(3, 1, 3) = (DQ(1, 4)*Q(1) + DQ(1, 1)*Q(4))*(L * L); \
-    dEsTiNaTiOn(3, 2, 2) = ((-2.*Q(2) + DQ(1, 2)*z)*(L * L))/(z * z * z); \
-    dEsTiNaTiOn(3, 3, 1) = (DQ(1, 4)*Q(1) + DQ(1, 1)*Q(4))*(L * L); \
-    dEsTiNaTiOn(3, 3, 3) = ((L * L)*(2.*Q(1)*Q(4)*(Q(4) + DQ(1, 4)*z)*(z * z * z * z) + (-2.*Q(3)*(4. - 5.*(2. + mu * mu)*(z * z * z) + 6.*(mu * mu)*(z * z * z * z)) + (-1. + z)*z*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(2.*DQ(1, 3) + DQ(1, 1)*(Q(4) * Q(4))*(z * z * z * z)*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))))/((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))))/(z * z * z)
+    dEsTiNaTiOn(1, 0, 0) = (-1. + z)*(L * L)*(1. + z + z * z - 0.5*(mu * mu)*(z * z * z))*1. / (z * z)*DQ(1, 0); \
+    dEsTiNaTiOn(1, 1, 1) = (L * L)*1. / (z * z)*DQ(1, 1); \
+    dEsTiNaTiOn(1, 1, 3) = (L * L)*(DQ(1, 4)*Q(1) + DQ(1, 1)*Q(4)); \
+    dEsTiNaTiOn(1, 2, 2) = (L * L)*1. / (z * z)*DQ(1, 2); \
+    dEsTiNaTiOn(1, 3, 1) = (L * L)*(DQ(1, 4)*Q(1) + DQ(1, 1)*Q(4)); \
+    dEsTiNaTiOn(1, 3, 3) = (L * L)*1. / (z * z)*((Q(4) * Q(4))*(z * z * z * z)*DQ(1, 1) + 2.*1. / (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*DQ(1, 3) + 2.*(z * z * z * z)*DQ(1, 4)*Q(1)*Q(4)); \
+    dEsTiNaTiOn(3, 0, 0) = 0.5*(L * L)*1. / (z * z * z)*(z*(-2. + (2. + mu * mu)*(z * z * z) - 1.*(mu * mu)*(z * z * z * z))*DQ(3, 0) + (4. + (2. + mu * mu)*(z * z * z) - 2.*(mu * mu)*(z * z * z * z))*Q(0)); \
+    dEsTiNaTiOn(3, 1, 1) = (L * L)*1. / (z * z * z)*(z*DQ(3, 1) - 2.*Q(1)); \
+    dEsTiNaTiOn(3, 1, 3) = (L * L)*(DQ(3, 4)*Q(1) + DQ(3, 1)*Q(4)); \
+    dEsTiNaTiOn(3, 2, 2) = (L * L)*1. / (z * z * z)*(z*DQ(3, 2) - 2.*Q(2)); \
+    dEsTiNaTiOn(3, 3, 1) = (L * L)*(DQ(3, 4)*Q(1) + DQ(3, 1)*Q(4)); \
+    dEsTiNaTiOn(3, 3, 3) = (L * L)*1. / (z * z * z)*(1. / ((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))*((-1. + z)*z*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*((Q(4) * Q(4))*(z * z * z * z)*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*DQ(3, 1) + 2.*DQ(3, 3)) - 2.*(4. - 5.*(2. + mu * mu)*(z * z * z) + 6.*(mu * mu)*(z * z * z * z))*Q(3)) + 2.*(z * z * z * z)*Q(1)*Q(4)*(z*DQ(3, 4) + Q(4)))
 
 #define FROM_EXPRESSIONS_Dg_dUU(dEsTiNaTiOn) \
-    dEsTiNaTiOn(1, 0, 0) = (2.*DQ(0, 0)*(z * z))/((-1. + z)*(L * L)*(Q(0) * Q(0))*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))); \
-    dEsTiNaTiOn(1, 1, 1) = (0.5*(z * z)*(2.*DQ(0, 3) + 4.*DQ(0, 4)*Q(1)*Q(4)*(z * z * z * z) + 2.*DQ(0, 1)*(Q(4) * Q(4))*(z * z * z * z) - 4.*DQ(0, 4)*Q(1)*Q(4)*(z * z * z * z * z * z * z) - 2.*DQ(0, 4)*Q(1)*Q(4)*(mu * mu)*(z * z * z * z * z * z * z) - 2.*DQ(0, 1)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) - 1.*DQ(0, 1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) + 2.*DQ(0, 4)*Q(1)*Q(4)*(mu * mu)*(z * z * z * z * z * z * z * z) + DQ(0, 1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)))/(Q(1)*Q(3)*(L * L)) - (0.5*DQ(0, 1)*(z * z)*(2.*Q(3) + 2.*Q(1)*(Q(4) * Q(4))*(z * z * z * z) - 2.*Q(1)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) - 1.*Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) + Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)))/(Q(3)*(L * L)*(Q(1) * Q(1))) - (0.5*DQ(0, 3)*(z * z)*(2.*Q(3) + 2.*Q(1)*(Q(4) * Q(4))*(z * z * z * z) - 2.*Q(1)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) - 1.*Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) + Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)))/(Q(1)*(L * L)*(Q(3) * Q(3))); \
-    dEsTiNaTiOn(1, 1, 3) = (-0.5*DQ(0, 4)*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z))/(Q(3)*(L * L)) + (0.5*DQ(0, 3)*Q(4)*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z))/((L * L)*(Q(3) * Q(3))); \
-    dEsTiNaTiOn(1, 2, 2) = (-1.*DQ(0, 2)*(z * z))/((L * L)*(Q(2) * Q(2))); \
-    dEsTiNaTiOn(1, 3, 1) = (-0.5*DQ(0, 4)*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z))/(Q(3)*(L * L)) + (0.5*DQ(0, 3)*Q(4)*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z))/((L * L)*(Q(3) * Q(3))); \
-    dEsTiNaTiOn(1, 3, 3) = (-0.5*DQ(0, 3)*(-1. + z)*(z * z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z)))/((L * L)*(Q(3) * Q(3))); \
-    dEsTiNaTiOn(3, 0, 0) = (2.*(z * z)*(-2. - 4.*z + 3.*(mu * mu)*(z * z)))/(Q(0)*(-1. + z)*(L * L)*((-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z)) * (-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z)))) - (4.*z)/(Q(0)*(-1. + z)*(L * L)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))) + (2.*DQ(1, 0)*(z * z))/((-1. + z)*(L * L)*(Q(0) * Q(0))*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))) + (2.*(z * z))/(Q(0)*(L * L)*((-1. + z) * (-1. + z))*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))); \
-    dEsTiNaTiOn(3, 1, 1) = (0.5*(z * z)*(2.*DQ(1, 3) + 8.*Q(1)*(Q(4) * Q(4))*(z * z * z) + 4.*DQ(1, 4)*Q(1)*Q(4)*(z * z * z * z) + 2.*DQ(1, 1)*(Q(4) * Q(4))*(z * z * z * z) - 14.*Q(1)*(Q(4) * Q(4))*(z * z * z * z * z * z) - 7.*Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z) - 4.*DQ(1, 4)*Q(1)*Q(4)*(z * z * z * z * z * z * z) - 2.*DQ(1, 4)*Q(1)*Q(4)*(mu * mu)*(z * z * z * z * z * z * z) - 2.*DQ(1, 1)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) - 1.*DQ(1, 1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) + 8.*Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) + 2.*DQ(1, 4)*Q(1)*Q(4)*(mu * mu)*(z * z * z * z * z * z * z * z) + DQ(1, 1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)))/(Q(1)*Q(3)*(L * L)) + (z*(2.*Q(3) + 2.*Q(1)*(Q(4) * Q(4))*(z * z * z * z) - 2.*Q(1)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) - 1.*Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) + Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)))/(Q(1)*Q(3)*(L * L)) - (0.5*DQ(1, 1)*(z * z)*(2.*Q(3) + 2.*Q(1)*(Q(4) * Q(4))*(z * z * z * z) - 2.*Q(1)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) - 1.*Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) + Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)))/(Q(3)*(L * L)*(Q(1) * Q(1))) - (0.5*DQ(1, 3)*(z * z)*(2.*Q(3) + 2.*Q(1)*(Q(4) * Q(4))*(z * z * z * z) - 2.*Q(1)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) - 1.*Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z) + Q(1)*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)))/(Q(1)*(L * L)*(Q(3) * Q(3))); \
-    dEsTiNaTiOn(3, 1, 3) = (-2.*Q(4)*(-1. + z)*(z * z * z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z)))/(Q(3)*(L * L)) - (0.5*Q(4)*(-1. + z)*(-2. - 4.*z + 3.*(mu * mu)*(z * z))*(z * z * z * z))/(Q(3)*(L * L)) - (0.5*Q(4)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z))/(Q(3)*(L * L)) - (0.5*DQ(1, 4)*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z))/(Q(3)*(L * L)) + (0.5*DQ(1, 3)*Q(4)*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z))/((L * L)*(Q(3) * Q(3))); \
-    dEsTiNaTiOn(3, 2, 2) = (2.*z)/(Q(2)*(L * L)) - (1.*DQ(1, 2)*(z * z))/((L * L)*(Q(2) * Q(2))); \
-    dEsTiNaTiOn(3, 3, 1) = (-2.*Q(4)*(-1. + z)*(z * z * z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z)))/(Q(3)*(L * L)) - (0.5*Q(4)*(-1. + z)*(-2. - 4.*z + 3.*(mu * mu)*(z * z))*(z * z * z * z))/(Q(3)*(L * L)) - (0.5*Q(4)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z))/(Q(3)*(L * L)) - (0.5*DQ(1, 4)*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z))/(Q(3)*(L * L)) + (0.5*DQ(1, 3)*Q(4)*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z))/((L * L)*(Q(3) * Q(3))); \
-    dEsTiNaTiOn(3, 3, 3) = (0.5*(-1. + z)*(z * z)*(-2. - 4.*z + 3.*(mu * mu)*(z * z)))/(Q(3)*(L * L)) + ((-1. + z)*z*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z)))/(Q(3)*(L * L)) + (0.5*(z * z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z)))/(Q(3)*(L * L)) - (0.5*DQ(1, 3)*(-1. + z)*(z * z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z)))/((L * L)*(Q(3) * Q(3)))
+    dEsTiNaTiOn(1, 0, 0) = 2.*(z * z)*1. / (-1. + z)*1. / (L * L)*1. / (Q(0) * Q(0))*1. / (-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*DQ(1, 0); \
+    dEsTiNaTiOn(1, 1, 1) = -0.5*(z * z)*1. / (L * L)*1. / (Q(1) * Q(1))*1. / Q(3)*DQ(1, 1)*(2.*(Q(4) * Q(4))*(z * z * z * z)*Q(1) - 2.*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*Q(1) - 1.*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*Q(1) + (mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)*Q(1) + 2.*Q(3)) - 0.5*(z * z)*1. / (L * L)*1. / (Q(3) * Q(3))*1. / Q(1)*DQ(1, 3)*(2.*(Q(4) * Q(4))*(z * z * z * z)*Q(1) - 2.*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*Q(1) - 1.*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*Q(1) + (mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)*Q(1) + 2.*Q(3)) + 0.5*(z * z)*1. / (L * L)*1. / Q(1)*1. / Q(3)*(2.*(Q(4) * Q(4))*(z * z * z * z)*DQ(1, 1) - 2.*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*DQ(1, 1) - 1.*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*DQ(1, 1) + (mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)*DQ(1, 1) + 2.*DQ(1, 3) + 4.*(z * z * z * z)*DQ(1, 4)*Q(1)*Q(4) - 4.*(z * z * z * z * z * z * z)*DQ(1, 4)*Q(1)*Q(4) - 2.*(mu * mu)*(z * z * z * z * z * z * z)*DQ(1, 4)*Q(1)*Q(4) + 2.*(mu * mu)*(z * z * z * z * z * z * z * z)*DQ(1, 4)*Q(1)*Q(4)); \
+    dEsTiNaTiOn(1, 1, 3) = -0.5*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z)*1. / (L * L)*1. / Q(3)*DQ(1, 4) + 0.5*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z)*1. / (L * L)*1. / (Q(3) * Q(3))*DQ(1, 3)*Q(4); \
+    dEsTiNaTiOn(1, 2, 2) = -1.*(z * z)*1. / (L * L)*1. / (Q(2) * Q(2))*DQ(1, 2); \
+    dEsTiNaTiOn(1, 3, 1) = -0.5*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z)*1. / (L * L)*1. / Q(3)*DQ(1, 4) + 0.5*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z)*1. / (L * L)*1. / (Q(3) * Q(3))*DQ(1, 3)*Q(4); \
+    dEsTiNaTiOn(1, 3, 3) = -0.5*(-1. + z)*(z * z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*1. / (L * L)*1. / (Q(3) * Q(3))*DQ(1, 3); \
+    dEsTiNaTiOn(3, 0, 0) = 2.*(z * z)*(-2. - 4.*z + 3.*(mu * mu)*(z * z))*1. / (-1. + z)*1. / (L * L)*1. / ((-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z)) * (-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z)))*1. / Q(0) - 4.*z*1. / (-1. + z)*1. / (L * L)*1. / (-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*1. / Q(0) + 2.*(z * z)*1. / (L * L)*1. / ((-1. + z) * (-1. + z))*1. / (-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*1. / Q(0) + 2.*(z * z)*1. / (-1. + z)*1. / (L * L)*1. / (Q(0) * Q(0))*1. / (-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*DQ(3, 0); \
+    dEsTiNaTiOn(3, 1, 1) = z*1. / (L * L)*1. / Q(1)*1. / Q(3)*(2.*(Q(4) * Q(4))*(z * z * z * z)*Q(1) - 2.*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*Q(1) - 1.*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*Q(1) + (mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)*Q(1) + 2.*Q(3)) - 0.5*(z * z)*1. / (L * L)*1. / (Q(1) * Q(1))*1. / Q(3)*DQ(3, 1)*(2.*(Q(4) * Q(4))*(z * z * z * z)*Q(1) - 2.*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*Q(1) - 1.*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*Q(1) + (mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)*Q(1) + 2.*Q(3)) - 0.5*(z * z)*1. / (L * L)*1. / (Q(3) * Q(3))*1. / Q(1)*DQ(3, 3)*(2.*(Q(4) * Q(4))*(z * z * z * z)*Q(1) - 2.*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*Q(1) - 1.*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*Q(1) + (mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)*Q(1) + 2.*Q(3)) + 0.5*(z * z)*1. / (L * L)*1. / Q(1)*1. / Q(3)*(2.*(Q(4) * Q(4))*(z * z * z * z)*DQ(3, 1) - 2.*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*DQ(3, 1) - 1.*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*DQ(3, 1) + (mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z * z)*DQ(3, 1) + 2.*DQ(3, 3) + 8.*(Q(4) * Q(4))*(z * z * z)*Q(1) - 14.*(Q(4) * Q(4))*(z * z * z * z * z * z)*Q(1) - 7.*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z)*Q(1) + 8.*(mu * mu)*(Q(4) * Q(4))*(z * z * z * z * z * z * z)*Q(1) + 4.*(z * z * z * z)*DQ(3, 4)*Q(1)*Q(4) - 4.*(z * z * z * z * z * z * z)*DQ(3, 4)*Q(1)*Q(4) - 2.*(mu * mu)*(z * z * z * z * z * z * z)*DQ(3, 4)*Q(1)*Q(4) + 2.*(mu * mu)*(z * z * z * z * z * z * z * z)*DQ(3, 4)*Q(1)*Q(4)); \
+    dEsTiNaTiOn(3, 1, 3) = -0.5*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z)*1. / (L * L)*1. / Q(3)*DQ(3, 4) - 2.*(-1. + z)*(z * z * z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*1. / (L * L)*1. / Q(3)*Q(4) - 0.5*(-1. + z)*(-2. - 4.*z + 3.*(mu * mu)*(z * z))*(z * z * z * z)*1. / (L * L)*1. / Q(3)*Q(4) - 0.5*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z)*1. / (L * L)*1. / Q(3)*Q(4) + 0.5*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z)*1. / (L * L)*1. / (Q(3) * Q(3))*DQ(3, 3)*Q(4); \
+    dEsTiNaTiOn(3, 2, 2) = 2.*z*1. / (L * L)*1. / Q(2) - 1.*(z * z)*1. / (L * L)*1. / (Q(2) * Q(2))*DQ(3, 2); \
+    dEsTiNaTiOn(3, 3, 1) = -0.5*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z)*1. / (L * L)*1. / Q(3)*DQ(3, 4) - 2.*(-1. + z)*(z * z * z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*1. / (L * L)*1. / Q(3)*Q(4) - 0.5*(-1. + z)*(-2. - 4.*z + 3.*(mu * mu)*(z * z))*(z * z * z * z)*1. / (L * L)*1. / Q(3)*Q(4) - 0.5*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z)*1. / (L * L)*1. / Q(3)*Q(4) + 0.5*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(z * z * z * z)*1. / (L * L)*1. / (Q(3) * Q(3))*DQ(3, 3)*Q(4); \
+    dEsTiNaTiOn(3, 3, 3) = 0.5*(-1. + z)*(z * z)*(-2. - 4.*z + 3.*(mu * mu)*(z * z))*1. / (L * L)*1. / Q(3) + (-1. + z)*z*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*1. / (L * L)*1. / Q(3) + 0.5*(z * z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*1. / (L * L)*1. / Q(3) - 0.5*(-1. + z)*(z * z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*1. / (L * L)*1. / (Q(3) * Q(3))*DQ(3, 3)
 
 #define FROM_EXPRESSIONS_DDg_dddd(dEsTiNaTiOn) \
-    dEsTiNaTiOn(1, 1, 0, 0) = (DDQ(0, 0, 0)*(-1. + z)*(L * L)*(1. + z + z * z - 0.5*(mu * mu)*(z * z * z)))/(z * z); \
-    dEsTiNaTiOn(1, 1, 1, 1) = (DDQ(0, 0, 1)*(L * L))/(z * z); \
-    dEsTiNaTiOn(1, 1, 1, 3) = (2.*DQ(0, 1)*DQ(0, 4) + DDQ(0, 0, 4)*Q(1) + DDQ(0, 0, 1)*Q(4))*(L * L); \
-    dEsTiNaTiOn(1, 1, 2, 2) = (DDQ(0, 0, 2)*(L * L))/(z * z); \
-    dEsTiNaTiOn(1, 1, 3, 1) = (2.*DQ(0, 1)*DQ(0, 4) + DDQ(0, 0, 4)*Q(1) + DDQ(0, 0, 1)*Q(4))*(L * L); \
-    dEsTiNaTiOn(1, 1, 3, 3) = ((L * L)*(2.*(2.*DQ(0, 1)*DQ(0, 4) + DDQ(0, 0, 4)*Q(1))*Q(4)*(z * z * z * z) + 2.*Q(1)*(DQ(0, 4) * DQ(0, 4))*(z * z * z * z) + DDQ(0, 0, 1)*(Q(4) * Q(4))*(z * z * z * z) + (2.*DDQ(0, 0, 3))/(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))))/(z * z); \
-    dEsTiNaTiOn(1, 3, 0, 0) = (0.5*(L * L)*(DQ(0, 0)*(4. + (2. + mu * mu)*(z * z * z) - 2.*(mu * mu)*(z * z * z * z)) + DDQ(0, 1, 0)*z*(-2. + (2. + mu * mu)*(z * z * z) - 1.*(mu * mu)*(z * z * z * z))))/(z * z * z); \
-    dEsTiNaTiOn(1, 3, 1, 1) = ((-2.*DQ(0, 1) + DDQ(0, 1, 1)*z)*(L * L))/(z * z * z); \
-    dEsTiNaTiOn(1, 3, 1, 3) = (DQ(0, 4)*DQ(1, 1) + DQ(0, 1)*DQ(1, 4) + DDQ(0, 1, 4)*Q(1) + DDQ(0, 1, 1)*Q(4))*(L * L); \
-    dEsTiNaTiOn(1, 3, 2, 2) = ((-2.*DQ(0, 2) + DDQ(0, 1, 2)*z)*(L * L))/(z * z * z); \
-    dEsTiNaTiOn(1, 3, 3, 1) = (DQ(0, 4)*DQ(1, 1) + DQ(0, 1)*DQ(1, 4) + DDQ(0, 1, 4)*Q(1) + DDQ(0, 1, 1)*Q(4))*(L * L); \
-    dEsTiNaTiOn(1, 3, 3, 3) = ((L * L)*(2.*Q(1)*Q(4)*(DQ(0, 4) + DDQ(0, 1, 4)*z)*(z * z * z * z) + 2.*DQ(0, 4)*Q(1)*(Q(4) + DQ(1, 4)*z)*(z * z * z * z) + 2.*DQ(0, 1)*Q(4)*(Q(4) + DQ(1, 4)*z)*(z * z * z * z) + (-2.*DQ(0, 3)*(4. - 5.*(2. + mu * mu)*(z * z * z) + 6.*(mu * mu)*(z * z * z * z)) + (-1. + z)*z*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(2.*DDQ(0, 1, 3) + 2.*DQ(0, 4)*DQ(1, 1)*Q(4)*(z * z * z * z)*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) + DDQ(0, 1, 1)*(Q(4) * Q(4))*(z * z * z * z)*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))))/((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))))/(z * z * z); \
-    dEsTiNaTiOn(3, 1, 0, 0) = (0.5*(L * L)*(DQ(0, 0)*(4. + (2. + mu * mu)*(z * z * z) - 2.*(mu * mu)*(z * z * z * z)) + DDQ(0, 1, 0)*z*(-2. + (2. + mu * mu)*(z * z * z) - 1.*(mu * mu)*(z * z * z * z))))/(z * z * z); \
-    dEsTiNaTiOn(3, 1, 1, 1) = ((-2.*DQ(0, 1) + DDQ(0, 1, 1)*z)*(L * L))/(z * z * z); \
-    dEsTiNaTiOn(3, 1, 1, 3) = (DQ(0, 4)*DQ(1, 1) + DQ(0, 1)*DQ(1, 4) + DDQ(0, 1, 4)*Q(1) + DDQ(0, 1, 1)*Q(4))*(L * L); \
-    dEsTiNaTiOn(3, 1, 2, 2) = ((-2.*DQ(0, 2) + DDQ(0, 1, 2)*z)*(L * L))/(z * z * z); \
-    dEsTiNaTiOn(3, 1, 3, 1) = (DQ(0, 4)*DQ(1, 1) + DQ(0, 1)*DQ(1, 4) + DDQ(0, 1, 4)*Q(1) + DDQ(0, 1, 1)*Q(4))*(L * L); \
-    dEsTiNaTiOn(3, 1, 3, 3) = ((L * L)*(2.*Q(4)*(DQ(0, 4)*DQ(1, 1)*z + DQ(0, 1)*DQ(1, 4)*z + Q(1)*(2.*DQ(0, 4) + DDQ(0, 1, 4)*z))*(z * z * z * z) + (2.*DQ(0, 1) + DDQ(0, 1, 1)*z)*(Q(4) * Q(4))*(z * z * z * z) + (2.*(-4.*DQ(0, 3) + 2.*DDQ(0, 1, 3)*z + 10.*DQ(0, 3)*(z * z * z) + 5.*DQ(0, 3)*(mu * mu)*(z * z * z) - 2.*DDQ(0, 1, 3)*(z * z * z * z) - 1.*DDQ(0, 1, 3)*(mu * mu)*(z * z * z * z) - 6.*DQ(0, 3)*(mu * mu)*(z * z * z * z) + DDQ(0, 1, 3)*(mu * mu)*(z * z * z * z * z) + DQ(0, 4)*DQ(1, 4)*Q(1)*((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))*(z * z * z * z * z)))/((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))))/(z * z * z); \
-    dEsTiNaTiOn(3, 3, 0, 0) = (-0.5*(L * L)*(2.*Q(0)*(6. + (mu * mu)*(z * z * z * z)) + z*(DDQ(1, 1, 0)*z*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) + DQ(1, 0)*(-8. - 2.*(2. + mu * mu)*(z * z * z) + 4.*(mu * mu)*(z * z * z * z)))))/(z * z * z * z); \
-    dEsTiNaTiOn(3, 3, 1, 1) = ((6.*Q(1) + z*(-4.*DQ(1, 1) + DDQ(1, 1, 1)*z))*(L * L))/(z * z * z * z); \
-    dEsTiNaTiOn(3, 3, 1, 3) = (2.*DQ(1, 1)*DQ(1, 4) + DDQ(1, 1, 4)*Q(1) + DDQ(1, 1, 1)*Q(4))*(L * L); \
-    dEsTiNaTiOn(3, 3, 2, 2) = ((6.*Q(2) + z*(-4.*DQ(1, 2) + DDQ(1, 1, 2)*z))*(L * L))/(z * z * z * z); \
-    dEsTiNaTiOn(3, 3, 3, 1) = (2.*DQ(1, 1)*DQ(1, 4) + DDQ(1, 1, 4)*Q(1) + DDQ(1, 1, 1)*Q(4))*(L * L); \
-    dEsTiNaTiOn(3, 3, 3, 3) = ((L * L)*(2.*Q(1)*Q(4)*(Q(4) + DQ(1, 4)*z)*(z * z * z * z) - (3.*(-2.*Q(3)*(4. - 5.*(2. + mu * mu)*(z * z * z) + 6.*(mu * mu)*(z * z * z * z)) + (-1. + z)*z*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(2.*DQ(1, 3) + DQ(1, 1)*(Q(4) * Q(4))*(z * z * z * z)*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))))/((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))) - (2.*(-6. + (-3. + 4.*z)*(mu * mu))*(z * z * z)*(-2.*Q(3)*(4. - 5.*(2. + mu * mu)*(z * z * z) + 6.*(mu * mu)*(z * z * z * z)) + (-1. + z)*z*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(2.*DQ(1, 3) + DQ(1, 1)*(Q(4) * Q(4))*(z * z * z * z)*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))))/((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))) + 2.*Q(1)*Q(4)*(2.*DQ(1, 4) + DDQ(1, 1, 4)*z)*(z * z * z * z * z) + 2.*DQ(1, 4)*Q(1)*(Q(4) + DQ(1, 4)*z)*(z * z * z * z * z) + 2.*DQ(1, 1)*Q(4)*(Q(4) + DQ(1, 4)*z)*(z * z * z * z * z) + (6.*Q(3)*(10. + (5. - 8.*z)*(mu * mu))*(z * z * z) + (-1. + z)*z*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(-2.*DQ(1, 3) + 2.*DDQ(1, 1, 3)*z + (Q(4) * Q(4))*(z * z * z * z)*(DDQ(1, 1, 1)*z*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) + DQ(1, 1)*(10. - 11.*(2. + mu * mu)*(z * z * z) + 13.*(mu * mu)*(z * z * z * z))) + 2.*DQ(1, 1)*DQ(1, 4)*Q(4)*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*(z * z * z * z * z)))/((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))))/(z * z * z * z)
+    dEsTiNaTiOn(1, 1, 0, 0) = (-1. + z)*(L * L)*(1. + z + z * z - 0.5*(mu * mu)*(z * z * z))*1. / (z * z)*DDQ(1, 1, 0); \
+    dEsTiNaTiOn(1, 1, 1, 1) = (L * L)*1. / (z * z)*DDQ(1, 1, 1); \
+    dEsTiNaTiOn(1, 1, 1, 3) = (L * L)*(2.*DQ(1, 1)*DQ(1, 4) + DDQ(1, 1, 4)*Q(1) + DDQ(1, 1, 1)*Q(4)); \
+    dEsTiNaTiOn(1, 1, 2, 2) = (L * L)*1. / (z * z)*DDQ(1, 1, 2); \
+    dEsTiNaTiOn(1, 1, 3, 1) = (L * L)*(2.*DQ(1, 1)*DQ(1, 4) + DDQ(1, 1, 4)*Q(1) + DDQ(1, 1, 1)*Q(4)); \
+    dEsTiNaTiOn(1, 1, 3, 3) = (L * L)*1. / (z * z)*((Q(4) * Q(4))*(z * z * z * z)*DDQ(1, 1, 1) + 2.*1. / (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*DDQ(1, 1, 3) + 2.*(DQ(1, 4) * DQ(1, 4))*(z * z * z * z)*Q(1) + 2.*(z * z * z * z)*(2.*DQ(1, 1)*DQ(1, 4) + DDQ(1, 1, 4)*Q(1))*Q(4)); \
+    dEsTiNaTiOn(1, 3, 0, 0) = 0.5*(L * L)*1. / (z * z * z)*(z*(-2. + (2. + mu * mu)*(z * z * z) - 1.*(mu * mu)*(z * z * z * z))*DDQ(1, 3, 0) + (4. + (2. + mu * mu)*(z * z * z) - 2.*(mu * mu)*(z * z * z * z))*DQ(1, 0)); \
+    dEsTiNaTiOn(1, 3, 1, 1) = (L * L)*1. / (z * z * z)*(z*DDQ(1, 3, 1) - 2.*DQ(1, 1)); \
+    dEsTiNaTiOn(1, 3, 1, 3) = (L * L)*(DQ(1, 4)*DQ(3, 1) + DQ(1, 1)*DQ(3, 4) + DDQ(1, 3, 4)*Q(1) + DDQ(1, 3, 1)*Q(4)); \
+    dEsTiNaTiOn(1, 3, 2, 2) = (L * L)*1. / (z * z * z)*(z*DDQ(1, 3, 2) - 2.*DQ(1, 2)); \
+    dEsTiNaTiOn(1, 3, 3, 1) = (L * L)*(DQ(1, 4)*DQ(3, 1) + DQ(1, 1)*DQ(3, 4) + DDQ(1, 3, 4)*Q(1) + DDQ(1, 3, 1)*Q(4)); \
+    dEsTiNaTiOn(1, 3, 3, 3) = (L * L)*1. / (z * z * z)*(2.*(z * z * z * z)*(z*DDQ(1, 3, 4) + DQ(1, 4))*Q(1)*Q(4) + 2.*(z * z * z * z)*DQ(1, 4)*Q(1)*(z*DQ(3, 4) + Q(4)) + 2.*(z * z * z * z)*DQ(1, 1)*Q(4)*(z*DQ(3, 4) + Q(4)) + 1. / ((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))*(-2.*(4. - 5.*(2. + mu * mu)*(z * z * z) + 6.*(mu * mu)*(z * z * z * z))*DQ(1, 3) + (-1. + z)*z*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*((Q(4) * Q(4))*(z * z * z * z)*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*DDQ(1, 3, 1) + 2.*DDQ(1, 3, 3) + 2.*(z * z * z * z)*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*DQ(1, 4)*DQ(3, 1)*Q(4)))); \
+    dEsTiNaTiOn(3, 1, 0, 0) = 0.5*(L * L)*1. / (z * z * z)*(z*(-2. + (2. + mu * mu)*(z * z * z) - 1.*(mu * mu)*(z * z * z * z))*DDQ(1, 3, 0) + (4. + (2. + mu * mu)*(z * z * z) - 2.*(mu * mu)*(z * z * z * z))*DQ(1, 0)); \
+    dEsTiNaTiOn(3, 1, 1, 1) = (L * L)*1. / (z * z * z)*(z*DDQ(1, 3, 1) - 2.*DQ(1, 1)); \
+    dEsTiNaTiOn(3, 1, 1, 3) = (L * L)*(DQ(1, 4)*DQ(3, 1) + DQ(1, 1)*DQ(3, 4) + DDQ(1, 3, 4)*Q(1) + DDQ(1, 3, 1)*Q(4)); \
+    dEsTiNaTiOn(3, 1, 2, 2) = (L * L)*1. / (z * z * z)*(z*DDQ(1, 3, 2) - 2.*DQ(1, 2)); \
+    dEsTiNaTiOn(3, 1, 3, 1) = (L * L)*(DQ(1, 4)*DQ(3, 1) + DQ(1, 1)*DQ(3, 4) + DDQ(1, 3, 4)*Q(1) + DDQ(1, 3, 1)*Q(4)); \
+    dEsTiNaTiOn(3, 1, 3, 3) = (L * L)*1. / (z * z * z)*((Q(4) * Q(4))*(z * z * z * z)*(z*DDQ(1, 3, 1) + 2.*DQ(1, 1)) + 2.*1. / ((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))*(2.*z*DDQ(1, 3, 3) - 2.*(z * z * z * z)*DDQ(1, 3, 3) - 1.*(mu * mu)*(z * z * z * z)*DDQ(1, 3, 3) + (mu * mu)*(z * z * z * z * z)*DDQ(1, 3, 3) - 4.*DQ(1, 3) + 10.*(z * z * z)*DQ(1, 3) + 5.*(mu * mu)*(z * z * z)*DQ(1, 3) - 6.*(mu * mu)*(z * z * z * z)*DQ(1, 3) + ((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))*(z * z * z * z * z)*DQ(1, 4)*DQ(3, 4)*Q(1)) + 2.*(z * z * z * z)*(z*DQ(1, 4)*DQ(3, 1) + z*DQ(1, 1)*DQ(3, 4) + (z*DDQ(1, 3, 4) + 2.*DQ(1, 4))*Q(1))*Q(4)); \
+    dEsTiNaTiOn(3, 3, 0, 0) = -0.5*(L * L)*1. / (z * z * z * z)*(z*(z*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*DDQ(3, 3, 0) + (-8. - 2.*(2. + mu * mu)*(z * z * z) + 4.*(mu * mu)*(z * z * z * z))*DQ(3, 0)) + 2.*(6. + (mu * mu)*(z * z * z * z))*Q(0)); \
+    dEsTiNaTiOn(3, 3, 1, 1) = (L * L)*1. / (z * z * z * z)*(z*(z*DDQ(3, 3, 1) - 4.*DQ(3, 1)) + 6.*Q(1)); \
+    dEsTiNaTiOn(3, 3, 1, 3) = (L * L)*(2.*DQ(3, 1)*DQ(3, 4) + DDQ(3, 3, 4)*Q(1) + DDQ(3, 3, 1)*Q(4)); \
+    dEsTiNaTiOn(3, 3, 2, 2) = (L * L)*1. / (z * z * z * z)*(z*(z*DDQ(3, 3, 2) - 4.*DQ(3, 2)) + 6.*Q(2)); \
+    dEsTiNaTiOn(3, 3, 3, 1) = (L * L)*(2.*DQ(3, 1)*DQ(3, 4) + DDQ(3, 3, 4)*Q(1) + DDQ(3, 3, 1)*Q(4)); \
+    dEsTiNaTiOn(3, 3, 3, 3) = (L * L)*1. / (z * z * z * z)*(-3.*1. / ((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))*((-1. + z)*z*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*((Q(4) * Q(4))*(z * z * z * z)*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*DQ(3, 1) + 2.*DQ(3, 3)) - 2.*(4. - 5.*(2. + mu * mu)*(z * z * z) + 6.*(mu * mu)*(z * z * z * z))*Q(3)) - 2.*(-6. + (-3. + 4.*z)*(mu * mu))*(z * z * z)*1. / ((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))*((-1. + z)*z*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*((Q(4) * Q(4))*(z * z * z * z)*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*DQ(3, 1) + 2.*DQ(3, 3)) - 2.*(4. - 5.*(2. + mu * mu)*(z * z * z) + 6.*(mu * mu)*(z * z * z * z))*Q(3)) + 2.*(z * z * z * z * z)*(z*DDQ(3, 3, 4) + 2.*DQ(3, 4))*Q(1)*Q(4) + 2.*(z * z * z * z * z)*DQ(3, 4)*Q(1)*(z*DQ(3, 4) + Q(4)) + 2.*(z * z * z * z * z)*DQ(3, 1)*Q(4)*(z*DQ(3, 4) + Q(4)) + 2.*(z * z * z * z)*Q(1)*Q(4)*(z*DQ(3, 4) + Q(4)) + 1. / ((2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)) * (2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z)))*(6.*(10. + (5. - 8.*z)*(mu * mu))*(z * z * z)*Q(3) + (-1. + z)*z*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(2.*z*DDQ(3, 3, 3) + (Q(4) * Q(4))*(z * z * z * z)*(z*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*DDQ(3, 3, 1) + (10. - 11.*(2. + mu * mu)*(z * z * z) + 13.*(mu * mu)*(z * z * z * z))*DQ(3, 1)) - 2.*DQ(3, 3) + 2.*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*(z * z * z * z * z)*DQ(3, 1)*DQ(3, 4)*Q(4))))
+
+#define FROM_EXPRESSIONS_Gamma_Udd_ref(dEsTiNaTiOn) \
+    dEsTiNaTiOn(0, 0, 3) = (-4. - 1.*(2. + mu * mu)*(z * z * z) + 2.*(mu * mu)*(z * z * z * z))*1. / (4.*z - 2.*(2. + mu * mu)*(z * z * z * z) + 2.*(mu * mu)*(z * z * z * z * z)); \
+    dEsTiNaTiOn(0, 3, 0) = (-4. - 1.*(2. + mu * mu)*(z * z * z) + 2.*(mu * mu)*(z * z * z * z))*1. / (4.*z - 2.*(2. + mu * mu)*(z * z * z * z) + 2.*(mu * mu)*(z * z * z * z * z)); \
+    dEsTiNaTiOn(1, 1, 3) = -1.*1. / z; \
+    dEsTiNaTiOn(1, 3, 1) = -1.*1. / z; \
+    dEsTiNaTiOn(2, 2, 3) = -1.*1. / z; \
+    dEsTiNaTiOn(2, 3, 2) = -1.*1. / z; \
+    dEsTiNaTiOn(3, 0, 0) = 0.125*(-1. + z)*(-2. - 2.*z - 2.*(z * z) + (mu * mu)*(z * z * z))*(-4. - 1.*(2. + mu * mu)*(z * z * z) + 2.*(mu * mu)*(z * z * z * z))*1. / z; \
+    dEsTiNaTiOn(3, 1, 1) = 0.5*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*1. / z; \
+    dEsTiNaTiOn(3, 2, 2) = 0.5*(2. - 1.*(2. + mu * mu)*(z * z * z) + (mu * mu)*(z * z * z * z))*1. / z; \
+    dEsTiNaTiOn(3, 3, 3) = (-4. + 5.*(2. + mu * mu)*(z * z * z) - 6.*(mu * mu)*(z * z * z * z))*1. / (4.*z - 2.*(2. + mu * mu)*(z * z * z * z) + 2.*(mu * mu)*(z * z * z * z * z))
+
+#define FROM_EXPRESSIONS_DGamma_dUdd_ref(dEsTiNaTiOn) \
+    dEsTiNaTiOn(3, 0, 0, 3) = 0.5*(8. - 20.*(2. + mu * mu)*(z * z * z) + 32.*(mu * mu)*(z * z * z * z) - 1.*((2. + mu * mu) * (2. + mu * mu))*(z * z * z * z * z * z) + 2.*(mu * mu)*(2. + mu * mu)*(z * z * z * z * z * z * z) - 2.*(mu * mu * mu * mu)*(z * z * z * z * z * z * z * z))*1. / ((-1. + z) * (-1. + z))*1. / (z * z)*1. / ((2. + 2.*z + 2.*(z * z) - 1.*(mu * mu)*(z * z * z)) * (2. + 2.*z + 2.*(z * z) - 1.*(mu * mu)*(z * z * z))); \
+    dEsTiNaTiOn(3, 0, 3, 0) = 0.5*(8. - 20.*(2. + mu * mu)*(z * z * z) + 32.*(mu * mu)*(z * z * z * z) - 1.*((2. + mu * mu) * (2. + mu * mu))*(z * z * z * z * z * z) + 2.*(mu * mu)*(2. + mu * mu)*(z * z * z * z * z * z * z) - 2.*(mu * mu * mu * mu)*(z * z * z * z * z * z * z * z))*1. / ((-1. + z) * (-1. + z))*1. / (z * z)*1. / ((2. + 2.*z + 2.*(z * z) - 1.*(mu * mu)*(z * z * z)) * (2. + 2.*z + 2.*(z * z) - 1.*(mu * mu)*(z * z * z))); \
+    dEsTiNaTiOn(3, 1, 1, 3) = 1. / (z * z); \
+    dEsTiNaTiOn(3, 1, 3, 1) = 1. / (z * z); \
+    dEsTiNaTiOn(3, 2, 2, 3) = 1. / (z * z); \
+    dEsTiNaTiOn(3, 2, 3, 2) = 1. / (z * z); \
+    dEsTiNaTiOn(3, 3, 0, 0) = 0.5*z*(2. + mu * mu) + 0.625*((2. + mu * mu) * (2. + mu * mu))*(z * z * z * z) - 2.25*(mu * mu)*(2. + mu * mu)*(z * z * z * z * z) + 1.75*(mu * mu * mu * mu)*(z * z * z * z * z * z) + 1. / (z * z); \
+    dEsTiNaTiOn(3, 3, 1, 1) = -1.*z*(2. + mu * mu) + 1.5*(mu * mu)*(z * z) - 1.*1. / (z * z); \
+    dEsTiNaTiOn(3, 3, 2, 2) = -1.*z*(2. + mu * mu) + 1.5*(mu * mu)*(z * z) - 1.*1. / (z * z); \
+    dEsTiNaTiOn(3, 3, 3, 3) = 0.5*(8. + 4.*(2. + mu * mu)*(z * z * z) - 16.*(mu * mu)*(z * z * z * z) + 5.*((2. + mu * mu) * (2. + mu * mu))*(z * z * z * z * z * z) - 10.*(mu * mu)*(2. + mu * mu)*(z * z * z * z * z * z * z) + 6.*(mu * mu * mu * mu)*(z * z * z * z * z * z * z * z))*1. / ((-1. + z) * (-1. + z))*1. / (z * z)*1. / ((2. + 2.*z + 2.*(z * z) - 1.*(mu * mu)*(z * z * z)) * (2. + 2.*z + 2.*(z * z) - 1.*(mu * mu)*(z * z * z)))
 
 #define FROM_EXPRESSIONS_F_dd(dEsTiNaTiOn) \
-    dEsTiNaTiOn(0, 1) = DPsi(0)*(-1. + z); \
-    dEsTiNaTiOn(0, 3) = Psi + DPsi(1)*(-1. + z); \
-    dEsTiNaTiOn(1, 0) = -1.*DPsi(0)*(-1. + z); \
-    dEsTiNaTiOn(3, 0) = -1.*Psi - 1.*DPsi(1)*(-1. + z)
+    dEsTiNaTiOn(0, 1) = (-1. + z)*DQ(1, 5); \
+    dEsTiNaTiOn(0, 3) = (-1. + z)*DQ(3, 5) + Q(5); \
+    dEsTiNaTiOn(1, 0) = -1.*(-1. + z)*DQ(1, 5); \
+    dEsTiNaTiOn(3, 0) = -1.*(-1. + z)*DQ(3, 5) - 1.*Q(5)
 
 #define FROM_EXPRESSIONS_DF_ddd(dEsTiNaTiOn) \
-    dEsTiNaTiOn(1, 0, 1) = DDPsi(0, 0)*(-1. + z); \
-    dEsTiNaTiOn(1, 0, 3) = DPsi(0) + DDPsi(0, 1)*(-1. + z); \
-    dEsTiNaTiOn(1, 1, 0) = -1.*DDPsi(0, 0)*(-1. + z); \
-    dEsTiNaTiOn(1, 3, 0) = -1.*DPsi(0) - 1.*DDPsi(0, 1)*(-1. + z); \
-    dEsTiNaTiOn(3, 0, 1) = DPsi(0) + DDPsi(0, 1)*(-1. + z); \
-    dEsTiNaTiOn(3, 0, 3) = 2.*DPsi(1) + DDPsi(1, 1)*(-1. + z); \
-    dEsTiNaTiOn(3, 1, 0) = -1.*DPsi(0) - 1.*DDPsi(0, 1)*(-1. + z); \
-    dEsTiNaTiOn(3, 3, 0) = -2.*DPsi(1) - 1.*DDPsi(1, 1)*(-1. + z)
+    dEsTiNaTiOn(1, 0, 1) = (-1. + z)*DDQ(1, 1, 5); \
+    dEsTiNaTiOn(1, 0, 3) = (-1. + z)*DDQ(1, 3, 5) + DQ(1, 5); \
+    dEsTiNaTiOn(1, 1, 0) = -1.*(-1. + z)*DDQ(1, 1, 5); \
+    dEsTiNaTiOn(1, 3, 0) = -1.*(-1. + z)*DDQ(1, 3, 5) - 1.*DQ(1, 5); \
+    dEsTiNaTiOn(3, 0, 1) = (-1. + z)*DDQ(1, 3, 5) + DQ(1, 5); \
+    dEsTiNaTiOn(3, 0, 3) = (-1. + z)*DDQ(3, 3, 5) + 2.*DQ(3, 5); \
+    dEsTiNaTiOn(3, 1, 0) = -1.*(-1. + z)*DDQ(1, 3, 5) - 1.*DQ(1, 5); \
+    dEsTiNaTiOn(3, 3, 0) = -1.*(-1. + z)*DDQ(3, 3, 5) - 2.*DQ(3, 5)
 
 #define FROM_EXPRESSIONS_DPhi_d(dEsTiNaTiOn) \
-    dEsTiNaTiOn(1) = DPhi(0)*z; \
-    dEsTiNaTiOn(3) = Phi + DPhi(1)*z
+    dEsTiNaTiOn(1) = z*DQ(1, 6); \
+    dEsTiNaTiOn(3) = z*DQ(3, 6) + Q(6)
 
 #define FROM_EXPRESSIONS_DDPhi_dd(dEsTiNaTiOn) \
-    dEsTiNaTiOn(1, 1) = DDPhi(0, 0)*z; \
-    dEsTiNaTiOn(1, 3) = DPhi(0) + DDPhi(0, 1)*z; \
-    dEsTiNaTiOn(3, 1) = DPhi(0) + DDPhi(0, 1)*z; \
-    dEsTiNaTiOn(3, 3) = 2.*DPhi(1) + DDPhi(1, 1)*z
+    dEsTiNaTiOn(1, 1) = z*DDQ(1, 1, 6); \
+    dEsTiNaTiOn(1, 3) = z*DDQ(1, 3, 6) + DQ(1, 6); \
+    dEsTiNaTiOn(3, 1) = z*DDQ(1, 3, 6) + DQ(1, 6); \
+    dEsTiNaTiOn(3, 3) = z*DDQ(3, 3, 6) + 2.*DQ(3, 6)
 
 #define FROM_EXPRESSIONS_DChi_d(dEsTiNaTiOn) \
-    dEsTiNaTiOn(1) = DChi(0)*z; \
-    dEsTiNaTiOn(3) = Chi + DChi(1)*z
+    dEsTiNaTiOn(1) = z*DQ(1, 7); \
+    dEsTiNaTiOn(3) = z*DQ(3, 7) + Q(7)
 
 #define FROM_EXPRESSIONS_DDChi_dd(dEsTiNaTiOn) \
-    dEsTiNaTiOn(1, 1) = DDChi(0, 0)*z; \
-    dEsTiNaTiOn(1, 3) = DChi(0) + DDChi(0, 1)*z; \
-    dEsTiNaTiOn(3, 1) = DChi(0) + DDChi(0, 1)*z; \
-    dEsTiNaTiOn(3, 3) = 2.*DChi(1) + DDChi(1, 1)*z
+    dEsTiNaTiOn(1, 1) = z*DDQ(1, 1, 7); \
+    dEsTiNaTiOn(1, 3) = z*DDQ(1, 3, 7) + DQ(1, 7); \
+    dEsTiNaTiOn(3, 1) = z*DDQ(1, 3, 7) + DQ(1, 7); \
+    dEsTiNaTiOn(3, 3) = z*DDQ(3, 3, 7) + 2.*DQ(3, 7)
 
 #define FROM_EXPRESSIONS_V(dEsTiNaTiOn) \
-    dEsTiNaTiOn = (-1.*(Chi * Chi)*(z * z) - 1.*(Phi * Phi)*(z * z))/(L * L)
+    dEsTiNaTiOn = (-1.*(z * z)*(Q(6) * Q(6)) - 1.*(z * z)*(Q(7) * Q(7)))*1. / (L * L)
 
 #define FROM_EXPRESSIONS_DV_Phi(dEsTiNaTiOn) \
-    dEsTiNaTiOn = (-2.*Phi*z)/(L * L)
+    dEsTiNaTiOn = -2.*z*1. / (L * L)*Q(6)
 
 #define FROM_EXPRESSIONS_DV_Chi(dEsTiNaTiOn) \
-    dEsTiNaTiOn = (-2.*Chi*z)/(L * L)
+    dEsTiNaTiOn = -2.*z*1. / (L * L)*Q(7)
 
 #define FROM_EXPRESSIONS_Horizon(dEsTiNaTiOn) \
-    dEsTiNaTiOn(0) = 0.125*((-4.*DDQ(0, 0, 1))/Q(1) + (6.*DQ(1, 1))/Q(3) - 8.*(DChi(0) * DChi(0)) - 8.*(DPhi(0) * DPhi(0)) - (1.*DQ(1, 1)*(-6. + mu * mu))/Q(0) - (1.*DQ(1, 1)*(mu * mu))/Q(3) - (2.*(DQ(0, 0) * DQ(0, 0)))/(Q(0) * Q(0)) + (6.*(DQ(0, 1) * DQ(0, 1)))/(Q(1) * Q(1)) - (2.*(DQ(0, 2) * DQ(0, 2)))/(Q(2) * Q(2)) + 2.*Q(1)*((-6. + mu * mu)/Q(3) - 4.*(-3. + Chi * Chi + Phi * Phi) + (-6. + mu * mu - (2.*(Psi * Psi))/(Q(3)*(L * L)))/Q(0) + (DQ(0, 0)*Q(4)*(-6. + mu * mu))/(Q(0) * Q(0)) + (DQ(0, 3)*Q(4)*(-6. + mu * mu))/(Q(3) * Q(3))) - (2.*(DQ(0, 3) * DQ(0, 3)))/(Q(3) * Q(3))); \
-    dEsTiNaTiOn(1) = (0.125*((4.*Q(3)*(-1.*DDQ(0, 0, 2)*Q(2) + DQ(0, 2) * DQ(0, 2)))/(Q(1)*Q(2)) - 1.*DQ(1, 2)*(-6. + mu * mu) - (1.*DQ(1, 2)*Q(3)*(-6. + mu * mu))/Q(0) + 2.*Q(2)*(-6. + mu * mu - 4.*Q(3)*(-3. + Chi * Chi + Phi * Phi)) + (2.*Q(2)*(Q(3)*(L * L)*(-6. + mu * mu) - 2.*(Psi * Psi)))/(Q(0)*(L * L))))/Q(3); \
-    dEsTiNaTiOn(2) = 0.25*(-1. + Q(3)/Q(0)); \
-    dEsTiNaTiOn(3) = 0.25*((-2.*(DQ(1, 0)*(L * L)*(-6. + mu * mu) + 3.*Q(3)*(L * L)*(-2. + mu * mu) - 2.*(Psi * Psi)))/(Q(0)*(L * L)*(-6. + mu * mu)) + (DQ(1, 0)*Q(3))/(Q(0) * Q(0)) + (2.*Q(2)*(-2.*DDQ(0, 0, 3)*Q(3) + 2.*(DQ(0, 3) * DQ(0, 3)) + (-6. + mu * mu)*(Q(3) * Q(3))) - 1.*Q(1)*(-2.*(-6. + mu * mu)*(Q(3) * Q(3)) + Q(2)*(DQ(1, 3)*(-6. + mu * mu) + 2.*Q(3)*(6. + mu * mu) + 8.*(-3. + Chi * Chi + Phi * Phi)*(Q(3) * Q(3)))))/(Q(1)*Q(2)*Q(3)*(-6. + mu * mu))); \
-    dEsTiNaTiOn(4) = 0.125*((-4.*(DQ(0, 3)*(DQ(1, 1) - 1.*DQ(0, 1)*Q(4)) + (DQ(0, 1)*(1. + DQ(0, 4)) + DDQ(0, 0, 1)*Q(4))*Q(3)))/(Q(1)*Q(3)) - (1.*Q(1)*(DQ(1, 4)*Q(3)*(L * L)*(-6. + mu * mu) + 2.*Q(4)*(3.*Q(3)*(L * L)*(-2. + mu * mu) + 2.*(Psi * Psi))))/(Q(0)*Q(3)*(L * L)) + (2.*DQ(0, 0)*DQ(1, 3))/(Q(0) * Q(0)) + (Q(1)*Q(4)*(DQ(1, 0) + DQ(0, 0)*Q(4))*(-6. + mu * mu))/(Q(0) * Q(0)) + (2.*Q(3)*(DDQ(0, 1, 0)*(-6. + mu * mu) + DQ(0, 0)*(6. + mu * mu)))/((-6. + mu * mu)*(Q(0) * Q(0))) + (2.*DQ(0, 1)*(DQ(1, 1) + 2.*DQ(0, 1)*Q(4) - 2.*Q(3)))/(Q(1) * Q(1)) + (Q(4)*(Q(2) * Q(2))*(-4.*(DQ(0, 3) * DQ(0, 3)) - 1.*DQ(1, 1)*Q(3)*(-6. + mu * mu) + 2.*(-6. + mu * mu)*(Q(3) * Q(3))) - 2.*(-2.*DQ(0, 2)*Q(2)*(Q(3) * Q(3)) + DQ(0, 2)*(DQ(1, 2) + 2.*Q(3))*(Q(3) * Q(3)) + (Q(2) * Q(2))*(-1.*DQ(0, 3)*DQ(1, 3) - 4.*(1. + DQ(0, 4))*DQ(0, 3)*Q(3) + 2.*(2.*Chi*DChi(0) + DDQ(0, 0, 4) + 2.*DChi(0)*DChi(1) + 2.*DPhi(0)*DPhi(1) + 2.*DPhi(0)*Phi)*(Q(3) * Q(3)))))/((Q(2) * Q(2))*(Q(3) * Q(3))) + (Q(1)*(-3.*DQ(1, 4)*Q(2)*Q(3)*(-6. + mu * mu) + DQ(0, 3)*Q(2)*(-6. + mu * mu)*(Q(4) * Q(4)) + Q(4)*(2.*(-6. + mu * mu)*(Q(3) * Q(3)) + Q(2)*(2.*Q(3)*(18. + DQ(0, 4)*(-6. + mu * mu) - 5.*(mu * mu)) + DQ(1, 3)*(-6. + mu * mu) - 8.*(-3. + Chi * Chi + Phi * Phi)*(Q(3) * Q(3))))))/(Q(2)*(Q(3) * Q(3))) - (1.*(2.*(-8.*DPsi(0)*Psi + DDQ(0, 1, 0)*(L * L)*(-6. + mu * mu) + DQ(0, 0)*(L * L)*(6. + mu * mu)) + DQ(1, 1)*Q(4)*(L * L)*((-6. + mu * mu) * (-6. + mu * mu))))/(Q(0)*(L * L)*(-6. + mu * mu)) - (4.*DQ(0, 0)*DQ(1, 0)*Q(3))/(Q(0) * Q(0) * Q(0)))
+    dEsTiNaTiOn(0) = 0.125*(-8.*(Derivative(1, 0)(\(Phi)1)(x, 1.) * Derivative(1, 0)(\(Phi)1)(x, 1.)) - 8.*(Derivative(1, 0)(\(Chi)1)(x, 1.) * Derivative(1, 0)(\(Chi)1)(x, 1.)) - 2.*(Derivative(1, 0)(Qtt)(x, 1.) * Derivative(1, 0)(Qtt)(x, 1.))*1. / (Qtt(x, 1.) * Qtt(x, 1.)) + 6.*(Derivative(1, 0)(Qxx)(x, 1.) * Derivative(1, 0)(Qxx)(x, 1.))*1. / (Qxx(x, 1.) * Qxx(x, 1.)) - 2.*(Derivative(1, 0)(Qyy)(x, 1.) * Derivative(1, 0)(Qyy)(x, 1.))*1. / (Qyy(x, 1.) * Qyy(x, 1.)) - 2.*(Derivative(1, 0)(Qzz)(x, 1.) * Derivative(1, 0)(Qzz)(x, 1.))*1. / (Qzz(x, 1.) * Qzz(x, 1.)) - 1.*(-6. + mu * mu)*1. / Qtt(x, 1.)*Derivative(0, 1)(Qxx)(x, 1.) + 6.*1. / Qzz(x, 1.)*Derivative(0, 1)(Qxx)(x, 1.) - 1.*(mu * mu)*1. / Qzz(x, 1.)*Derivative(0, 1)(Qxx)(x, 1.) + 2.*Qxx(x, 1.)*(-4.*(-3. + \(Phi)1(x, 1.) * \(Phi)1(x, 1.) + \(Chi)1(x, 1.) * \(Chi)1(x, 1.)) + (-6. + mu * mu)*1. / Qzz(x, 1.) + 1. / Qtt(x, 1.)*(-6. + mu * mu - 2.*(\(Psi)(x, 1.) * \(Psi)(x, 1.))*1. / (L * L)*1. / Qzz(x, 1.)) + (-6. + mu * mu)*1. / (Qtt(x, 1.) * Qtt(x, 1.))*Qxz(x, 1.)*Derivative(1, 0)(Qtt)(x, 1.) + (-6. + mu * mu)*1. / (Qzz(x, 1.) * Qzz(x, 1.))*Qxz(x, 1.)*Derivative(1, 0)(Qzz)(x, 1.)) - 4.*1. / Qxx(x, 1.)*Derivative(2, 0)(Qxx)(x, 1.)); \
+    dEsTiNaTiOn(1) = 0.125*1. / Qzz(x, 1.)*(2.*1. / (L * L)*1. / Qtt(x, 1.)*Qyy(x, 1.)*(-2.*(\(Psi)(x, 1.) * \(Psi)(x, 1.)) + (L * L)*(-6. + mu * mu)*Qzz(x, 1.)) + 2.*Qyy(x, 1.)*(-6. + mu * mu - 4.*(-3. + \(Phi)1(x, 1.) * \(Phi)1(x, 1.) + \(Chi)1(x, 1.) * \(Chi)1(x, 1.))*Qzz(x, 1.)) - 1.*(-6. + mu * mu)*Derivative(0, 1)(Qyy)(x, 1.) - 1.*(-6. + mu * mu)*1. / Qtt(x, 1.)*Qzz(x, 1.)*Derivative(0, 1)(Qyy)(x, 1.) + 4.*1. / Qxx(x, 1.)*1. / Qyy(x, 1.)*Qzz(x, 1.)*(Derivative(1, 0)(Qyy)(x, 1.) * Derivative(1, 0)(Qyy)(x, 1.) - 1.*Qyy(x, 1.)*Derivative(2, 0)(Qyy)(x, 1.))); \
+    dEsTiNaTiOn(2) = 0.25*(-1. + 1. / Qtt(x, 1.)*Qzz(x, 1.)); \
+    dEsTiNaTiOn(3) = 0.25*(1. / (Qtt(x, 1.) * Qtt(x, 1.))*Qzz(x, 1.)*Derivative(0, 1)(Qtt)(x, 1.) - 2.*1. / (L * L)*1. / (-6. + mu * mu)*1. / Qtt(x, 1.)*(-2.*(\(Psi)(x, 1.) * \(Psi)(x, 1.)) + 3.*(L * L)*(-2. + mu * mu)*Qzz(x, 1.) + (L * L)*(-6. + mu * mu)*Derivative(0, 1)(Qtt)(x, 1.)) + 1. / (-6. + mu * mu)*1. / Qxx(x, 1.)*1. / Qyy(x, 1.)*1. / Qzz(x, 1.)*(-1.*Qxx(x, 1.)*(-2.*(-6. + mu * mu)*(Qzz(x, 1.) * Qzz(x, 1.)) + Qyy(x, 1.)*(8.*(Qzz(x, 1.) * Qzz(x, 1.))*(-3. + \(Phi)1(x, 1.) * \(Phi)1(x, 1.) + \(Chi)1(x, 1.) * \(Chi)1(x, 1.)) + 2.*(6. + mu * mu)*Qzz(x, 1.) + (-6. + mu * mu)*Derivative(0, 1)(Qzz)(x, 1.))) + 2.*Qyy(x, 1.)*((-6. + mu * mu)*(Qzz(x, 1.) * Qzz(x, 1.)) + 2.*(Derivative(1, 0)(Qzz)(x, 1.) * Derivative(1, 0)(Qzz)(x, 1.)) - 2.*Qzz(x, 1.)*Derivative(2, 0)(Qzz)(x, 1.)))); \
+    dEsTiNaTiOn(4) = 0.125*(-1.*1. / (L * L)*1. / Qtt(x, 1.)*1. / Qzz(x, 1.)*Qxx(x, 1.)*(2.*Qxz(x, 1.)*(2.*(\(Psi)(x, 1.) * \(Psi)(x, 1.)) + 3.*(L * L)*(-2. + mu * mu)*Qzz(x, 1.)) + (L * L)*(-6. + mu * mu)*Qzz(x, 1.)*Derivative(0, 1)(Qxz)(x, 1.)) - 4.*1. / (Qtt(x, 1.) * Qtt(x, 1.) * Qtt(x, 1.))*Qzz(x, 1.)*Derivative(0, 1)(Qtt)(x, 1.)*Derivative(1, 0)(Qtt)(x, 1.) + 2.*1. / (Qtt(x, 1.) * Qtt(x, 1.))*Derivative(0, 1)(Qzz)(x, 1.)*Derivative(1, 0)(Qtt)(x, 1.) + (-6. + mu * mu)*1. / (Qtt(x, 1.) * Qtt(x, 1.))*Qxx(x, 1.)*Qxz(x, 1.)*(Derivative(0, 1)(Qtt)(x, 1.) + Qxz(x, 1.)*Derivative(1, 0)(Qtt)(x, 1.)) + 2.*1. / (Qxx(x, 1.) * Qxx(x, 1.))*Derivative(1, 0)(Qxx)(x, 1.)*(-2.*Qzz(x, 1.) + Derivative(0, 1)(Qxx)(x, 1.) + 2.*Qxz(x, 1.)*Derivative(1, 0)(Qxx)(x, 1.)) + 1. / (Qzz(x, 1.) * Qzz(x, 1.))*1. / Qyy(x, 1.)*Qxx(x, 1.)*(-3.*(-6. + mu * mu)*Qyy(x, 1.)*Qzz(x, 1.)*Derivative(0, 1)(Qxz)(x, 1.) + Qxz(x, 1.)*(2.*(-6. + mu * mu)*(Qzz(x, 1.) * Qzz(x, 1.)) + Qyy(x, 1.)*(-8.*(Qzz(x, 1.) * Qzz(x, 1.))*(-3. + \(Phi)1(x, 1.) * \(Phi)1(x, 1.) + \(Chi)1(x, 1.) * \(Chi)1(x, 1.)) + (-6. + mu * mu)*Derivative(0, 1)(Qzz)(x, 1.) + 2.*Qzz(x, 1.)*(18. - 5.*(mu * mu) + (-6. + mu * mu)*Derivative(1, 0)(Qxz)(x, 1.)))) + (-6. + mu * mu)*(Qxz(x, 1.) * Qxz(x, 1.))*Qyy(x, 1.)*Derivative(1, 0)(Qzz)(x, 1.)) + 2.*1. / (-6. + mu * mu)*1. / (Qtt(x, 1.) * Qtt(x, 1.))*Qzz(x, 1.)*((6. + mu * mu)*Derivative(1, 0)(Qtt)(x, 1.) + (-6. + mu * mu)*Derivative(1, 1)(Qtt)(x, 1.)) - 1.*1. / (L * L)*1. / (-6. + mu * mu)*1. / Qtt(x, 1.)*((L * L)*((-6. + mu * mu) * (-6. + mu * mu))*Qxz(x, 1.)*Derivative(0, 1)(Qxx)(x, 1.) + 2.*((L * L)*(6. + mu * mu)*Derivative(1, 0)(Qtt)(x, 1.) - 8.*\(Psi)(x, 1.)*Derivative(1, 0)(\(Psi))(x, 1.) + (L * L)*(-6. + mu * mu)*Derivative(1, 1)(Qtt)(x, 1.))) - 4.*1. / Qxx(x, 1.)*1. / Qzz(x, 1.)*((Derivative(0, 1)(Qxx)(x, 1.) - 1.*Qxz(x, 1.)*Derivative(1, 0)(Qxx)(x, 1.))*Derivative(1, 0)(Qzz)(x, 1.) + Qzz(x, 1.)*(Derivative(1, 0)(Qxx)(x, 1.)*(1. + Derivative(1, 0)(Qxz)(x, 1.)) + Qxz(x, 1.)*Derivative(2, 0)(Qxx)(x, 1.))) + 1. / (Qyy(x, 1.) * Qyy(x, 1.))*1. / (Qzz(x, 1.) * Qzz(x, 1.))*((Qyy(x, 1.) * Qyy(x, 1.))*Qxz(x, 1.)*(2.*(-6. + mu * mu)*(Qzz(x, 1.) * Qzz(x, 1.)) - 4.*(Derivative(1, 0)(Qzz)(x, 1.) * Derivative(1, 0)(Qzz)(x, 1.)) - 1.*(-6. + mu * mu)*Qzz(x, 1.)*Derivative(0, 1)(Qxx)(x, 1.)) - 2.*(-2.*(Qzz(x, 1.) * Qzz(x, 1.))*Qyy(x, 1.)*Derivative(1, 0)(Qyy)(x, 1.) + (Qzz(x, 1.) * Qzz(x, 1.))*(2.*Qzz(x, 1.) + Derivative(0, 1)(Qyy)(x, 1.))*Derivative(1, 0)(Qyy)(x, 1.) + (Qyy(x, 1.) * Qyy(x, 1.))*(-1.*Derivative(0, 1)(Qzz)(x, 1.)*Derivative(1, 0)(Qzz)(x, 1.) - 4.*Qzz(x, 1.)*(1. + Derivative(1, 0)(Qxz)(x, 1.))*Derivative(1, 0)(Qzz)(x, 1.) + 2.*(Qzz(x, 1.) * Qzz(x, 1.))*(2.*\(Phi)1(x, 1.)*Derivative(1, 0)(\(Phi)1)(x, 1.) + 2.*Derivative(0, 1)(\(Phi)1)(x, 1.)*Derivative(1, 0)(\(Phi)1)(x, 1.) + 2.*\(Chi)1(x, 1.)*Derivative(1, 0)(\(Chi)1)(x, 1.) + 2.*Derivative(0, 1)(\(Chi)1)(x, 1.)*Derivative(1, 0)(\(Chi)1)(x, 1.) + Derivative(2, 0)(Qxz)(x, 1.))))))
