@@ -108,36 +108,38 @@ template <class Function> auto test_ref_function(char const* basename, Function 
 #endif
 
 auto run_compute_all(char const* filename) {
-    auto Q = load_tensor<8>("test/input_01/Q.dat");
-    auto DQ = load_tensor<4, 8>("test/input_01/DQ.dat");
-    auto DDQ = load_tensor<4, 4, 8>("test/input_01/DDQ.dat");
+    auto Q = load_tensor<1, 8>("test/input_01/Q.dat");
+    auto DQ = load_tensor<1, 4, 8>("test/input_01/DQ.dat");
+    auto DDQ = load_tensor<1, 4, 4, 8>("test/input_01/DDQ.dat");
     auto rest = load_tensor<3>("test/input_01/rest.dat");
-    auto const z = rest(0);
+
+    Buffer<double> z{1};
+    z(0) = rest(0);
     auto const mu = rest(1);
     auto const L = rest(2);
 
-    Buffer<double> g_dd{4, 4};
-    Buffer<double> g_UU{4, 4};
-    Buffer<double> Dg_ddd{4, 4, 4};
-    Buffer<double> Dg_dUU{4, 4, 4};
-    Buffer<double> DDg_dddd{4, 4, 4, 4};
-    Buffer<double> Gamma_Udd{4, 4, 4};
-    Buffer<double> DGamma_dUdd{4, 4, 4, 4};
-    Buffer<double> Xi_U{4};
-    Buffer<double> Xi_d{4};
-    Buffer<double> DXi_dU{4, 4};
-    Buffer<double> DXi_dd{4, 4};
-    Buffer<double> DivXi_dd{4, 4};
-    Buffer<double> R_Uddd{4, 4, 4, 4};
-    Buffer<double> R_dd{4, 4};
-    Buffer<double> F_dd{4, 4};
-    Buffer<double> DF_ddd{4, 4, 4};
-    Buffer<double> F_Ud{4, 4};
-    Buffer<double> DF_dUd{4, 4, 4};
-    Buffer<double> DivF_d{4};
-    Buffer<double> EOM_Phi{1};
-    Buffer<double> EOM_Chi{1};
-    Buffer<double> G_dd{4, 4};
+    Buffer<double> g_dd{1, 4, 4};
+    Buffer<double> g_UU{1, 4, 4};
+    Buffer<double> Dg_ddd{1, 4, 4, 4};
+    Buffer<double> Dg_dUU{1, 4, 4, 4};
+    Buffer<double> DDg_dddd{1, 4, 4, 4, 4};
+    Buffer<double> Gamma_Udd{1, 4, 4, 4};
+    Buffer<double> DGamma_dUdd{1, 4, 4, 4, 4};
+    Buffer<double> Xi_U{1, 4};
+    Buffer<double> Xi_d{1, 4};
+    Buffer<double> DXi_dU{1, 4, 4};
+    Buffer<double> DXi_dd{1, 4, 4};
+    Buffer<double> DivXi_dd{1, 4, 4};
+    Buffer<double> R_Uddd{1, 4, 4, 4, 4};
+    Buffer<double> R_dd{1, 4, 4};
+    Buffer<double> F_dd{1, 4, 4};
+    Buffer<double> DF_ddd{1, 4, 4, 4};
+    Buffer<double> F_Ud{1, 4, 4};
+    Buffer<double> DF_dUd{1, 4, 4, 4};
+    Buffer<double> DivF_d{1, 4};
+    Buffer<double> EOM_Phi{1, 1};
+    Buffer<double> EOM_Chi{1, 1};
+    Buffer<double> G_dd{1, 4, 4};
 
     compute_all(z, Q, DQ, DDQ, L, mu, g_dd, g_UU, Dg_ddd, Dg_dUU, DDg_dddd, Gamma_Udd, DGamma_dUdd,
                 Xi_U, Xi_d, DXi_dU, DXi_dd, DivXi_dd, R_Uddd, R_dd, F_dd, DF_ddd, F_Ud, DF_dUd,
@@ -157,28 +159,28 @@ TEST_CASE("compute_all") {
           DivXi_dd, R_Uddd, R_dd, F_dd, DF_ddd, F_Ud, DF_dUd, DivF_d, EOM_Phi, EOM_Chi, G_dd] =
         run_compute_all("test/input_01.dat");
     // clang-format off
-    SUBCASE("g_dd") { check_equal<4, 4>(g_dd, load_tensor<4, 4>("test/g_dd/output_01.dat")); }
-    SUBCASE("g_UU") { check_equal<4, 4>(g_UU, load_tensor<4, 4>("test/g_UU/output_01.dat")); }
-    SUBCASE("Dg_ddd") { check_equal<4, 4, 4>(Dg_ddd, load_tensor<4, 4, 4>("test/Dg_ddd/output_01.dat")); }
-    SUBCASE("Dg_dUU") { check_equal<4, 4, 4>(Dg_dUU, load_tensor<4, 4, 4>("test/Dg_dUU/output_01.dat")); }
-    SUBCASE("DDg_dddd") { check_equal<4, 4, 4, 4>(DDg_dddd, load_tensor<4, 4, 4, 4>("test/DDg_dddd/output_01.dat")); }
-    SUBCASE("Gamma_Udd") { check_equal<4, 4, 4>(Gamma_Udd, load_tensor<4, 4, 4>("test/Gamma_Udd/output_01.dat")); }
-    SUBCASE("DGamma_dUdd") { check_equal<4, 4, 4, 4>(DGamma_dUdd, load_tensor<4, 4, 4, 4>("test/DGamma_dUdd/output_01.dat")); }
-    SUBCASE("Xi_U") { check_equal<4>(Xi_U, load_tensor<4>("test/Xi_U/output_01.dat")); }
-    SUBCASE("Xi_d") { check_equal<4>(Xi_d, load_tensor<4>("test/Xi_d/output_01.dat")); }
-    SUBCASE("DXi_dU") { check_equal<4, 4>(DXi_dU, load_tensor<4, 4>("test/DXi_dU/output_01.dat")); }
-    SUBCASE("DXi_dd") { check_equal<4, 4>(DXi_dd, load_tensor<4, 4>("test/DXi_dd/output_01.dat")); }
-    SUBCASE("DivXi_dd") { check_equal<4, 4>(DivXi_dd, load_tensor<4, 4>("test/DivXi_dd/output_01.dat")); }
-    SUBCASE("R_Uddd") { check_equal<4, 4, 4, 4>(R_Uddd, load_tensor<4, 4, 4, 4>("test/R_Uddd/output_01.dat")); }
-    SUBCASE("R_dd") { check_equal<4, 4>(R_dd, load_tensor<4, 4>("test/R_dd/output_01.dat")); }
-    SUBCASE("F_dd") { check_equal<4, 4>(F_dd, load_tensor<4, 4>("test/F_dd/output_01.dat")); }
-    SUBCASE("DF_ddd") { check_equal<4, 4, 4>(DF_ddd, load_tensor<4, 4, 4>("test/DF_ddd/output_01.dat")); }
-    SUBCASE("F_Ud") { check_equal<4, 4>(F_Ud, load_tensor<4, 4>("test/F_Ud/output_01.dat")); }
-    SUBCASE("DF_dUd") { check_equal<4, 4, 4>(DF_dUd, load_tensor<4, 4, 4>("test/DF_dUd/output_01.dat")); }
-    SUBCASE("EOM_Psi") { check_equal<4>(DivF_d, load_tensor<4>("test/EOM_Psi/output_01.dat")); }
-    SUBCASE("EOM_Phi") { check_equal<1>(EOM_Phi, load_tensor<1>("test/EOM_Phi/output_01.dat")); }
-    SUBCASE("EOM_Chi") { check_equal<1>(EOM_Chi, load_tensor<1>("test/EOM_Chi/output_01.dat")); }
-    SUBCASE("G_dd") { check_equal<4, 4>(G_dd, load_tensor<4, 4>("test/G_dd/output_01.dat")); }
+    SUBCASE("g_dd") { check_equal<1, 4, 4>(g_dd, load_tensor<1, 4, 4>("test/g_dd/output_01.dat")); }
+    SUBCASE("g_UU") { check_equal<1, 4, 4>(g_UU, load_tensor<1, 4, 4>("test/g_UU/output_01.dat")); }
+    SUBCASE("Dg_ddd") { check_equal<1, 4, 4, 4>(Dg_ddd, load_tensor<1, 4, 4, 4>("test/Dg_ddd/output_01.dat")); }
+    SUBCASE("Dg_dUU") { check_equal<1, 4, 4, 4>(Dg_dUU, load_tensor<1, 4, 4, 4>("test/Dg_dUU/output_01.dat")); }
+    SUBCASE("DDg_dddd") { check_equal<1, 4, 4, 4, 4>(DDg_dddd, load_tensor<1, 4, 4, 4, 4>("test/DDg_dddd/output_01.dat")); }
+    SUBCASE("Gamma_Udd") { check_equal<1, 4, 4, 4>(Gamma_Udd, load_tensor<1, 4, 4, 4>("test/Gamma_Udd/output_01.dat")); }
+    SUBCASE("DGamma_dUdd") { check_equal<1, 4, 4, 4, 4>(DGamma_dUdd, load_tensor<1, 4, 4, 4, 4>("test/DGamma_dUdd/output_01.dat")); }
+    SUBCASE("Xi_U") { check_equal<1, 4>(Xi_U, load_tensor<1, 4>("test/Xi_U/output_01.dat")); }
+    SUBCASE("Xi_d") { check_equal<1, 4>(Xi_d, load_tensor<1, 4>("test/Xi_d/output_01.dat")); }
+    SUBCASE("DXi_dU") { check_equal<1, 4, 4>(DXi_dU, load_tensor<1, 4, 4>("test/DXi_dU/output_01.dat")); }
+    SUBCASE("DXi_dd") { check_equal<1, 4, 4>(DXi_dd, load_tensor<1, 4, 4>("test/DXi_dd/output_01.dat")); }
+    SUBCASE("DivXi_dd") { check_equal<1, 4, 4>(DivXi_dd, load_tensor<1, 4, 4>("test/DivXi_dd/output_01.dat")); }
+    SUBCASE("R_Uddd") { check_equal<1, 4, 4, 4, 4>(R_Uddd, load_tensor<1, 4, 4, 4, 4>("test/R_Uddd/output_01.dat")); }
+    SUBCASE("R_dd") { check_equal<1, 4, 4>(R_dd, load_tensor<1, 4, 4>("test/R_dd/output_01.dat")); }
+    SUBCASE("F_dd") { check_equal<1, 4, 4>(F_dd, load_tensor<1, 4, 4>("test/F_dd/output_01.dat")); }
+    SUBCASE("DF_ddd") { check_equal<1, 4, 4, 4>(DF_ddd, load_tensor<1, 4, 4, 4>("test/DF_ddd/output_01.dat")); }
+    SUBCASE("F_Ud") { check_equal<1, 4, 4>(F_Ud, load_tensor<1, 4, 4>("test/F_Ud/output_01.dat")); }
+    SUBCASE("DF_dUd") { check_equal<1, 4, 4, 4>(DF_dUd, load_tensor<1, 4, 4, 4>("test/DF_dUd/output_01.dat")); }
+    SUBCASE("EOM_Psi") { check_equal<1, 4>(DivF_d, load_tensor<1, 4>("test/EOM_Psi/output_01.dat")); }
+    SUBCASE("EOM_Phi") { check_equal<1, 1>(EOM_Phi, load_tensor<1, 1>("test/EOM_Phi/output_01.dat")); }
+    SUBCASE("EOM_Chi") { check_equal<1, 1>(EOM_Chi, load_tensor<1, 1>("test/EOM_Chi/output_01.dat")); }
+    SUBCASE("G_dd") { check_equal<1, 4, 4>(G_dd, load_tensor<1, 4, 4>("test/G_dd/output_01.dat")); }
     // clang-format on
 }
 

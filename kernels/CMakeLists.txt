@@ -48,6 +48,8 @@ endif()
 
 add_halide_library(compute_all
     FROM einstein_equations.generator GENERATOR compute_all_generator)
+add_halide_library(einstein_equations
+    FROM einstein_equations.generator GENERATOR einstein_equations_generator)
 
 # add_halide_library(g_dd_ref
 #     FROM einstein_equations.generator GENERATOR g_dd_ref_generator)
@@ -66,7 +68,9 @@ add_halide_library(compute_all
 
 add_executable(test_generator test_generator.cpp)
 target_link_libraries(test_generator
-    PRIVATE compute_all
+    PRIVATE
+        compute_all
+        einstein_equations
     # PRIVATE g_dd g_UU Dg_ddd Dg_dUU DDg_dddd
     #         Gamma_Udd DGamma_dUdd
     #         Xi_U Xi_d DXi_dU DXi_dd
