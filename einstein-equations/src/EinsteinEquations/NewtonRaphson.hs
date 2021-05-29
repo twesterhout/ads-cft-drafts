@@ -27,6 +27,7 @@ import Foreign.Storable
 import GHC.Exts (IsList (..))
 import GHC.Float
 import System.IO.Unsafe (unsafePerformIO)
+import Prelude hiding (init)
 
 data FortranMatrix a = FortranMatrix {fortranMatrixData :: !(ForeignPtr a), fortranMatrixShape :: !(Int, Int)}
 
@@ -308,7 +309,7 @@ deriving stock instance BlasDatatype a => Show (RootResult a)
 
 newtonRaphsonStep ::
   forall a m.
-  (BlasDatatype a, PrimMonad m) =>
+  (BlasDatatype a, Monad m) =>
   (Vector a -> m (Vector a)) ->
   (Vector a -> m (JacobianResult a)) ->
   RootState a ->
@@ -316,16 +317,16 @@ newtonRaphsonStep ::
 newtonRaphsonStep f df (RootState x₀ y₀ _) = do
   jacobian <- df x₀
   let δx = invertJacobian jacobian y₀
-  x <- do
-    t <- V.thaw x₀
-    axpy (-1) δx t
-    V.unsafeFreeze t
+      x = runST $ do
+        t <- V.thaw x₀
+        axpy (-1) δx t
+        V.unsafeFreeze t
   y <- f x
   return $ RootState x y (nrm2 y)
 
 newtonRaphson ::
   forall a m.
-  (BlasDatatype a, PrimMonad m) =>
+  (BlasDatatype a, Monad m) =>
   RootOptions a ->
   (Vector a -> m (Vector a)) ->
   (Vector a -> m (JacobianResult a)) ->
