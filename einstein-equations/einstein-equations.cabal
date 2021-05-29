@@ -48,6 +48,7 @@ common common-options
                        TypeInType
                        GADTs
                        TypeFamilies
+                       BangPatterns
                        FlexibleInstances
                        FlexibleContexts
                        DerivingStrategies
@@ -61,6 +62,7 @@ library
   hs-source-dirs:      src
   build-depends:       primitive
                      , vector
+                     , streamly
                      , dlpack-hs
   exposed-modules:     EinsteinEquations
                      , EinsteinEquations.Halide

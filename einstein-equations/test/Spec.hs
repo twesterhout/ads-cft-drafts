@@ -3,7 +3,9 @@ module Main (main) where
 import Data.Vector.Storable (Storable, Vector)
 import qualified Data.Vector.Storable as V
 import EinsteinEquations.NewtonRaphson
+import GHC.Exts (IsList (..))
 import Test.Hspec
+import Prelude hiding (toList)
 
 roundTo :: RealFrac a => a -> Int -> a
 roundTo x n = (fromInteger . round $ x * (10 ^ n)) / (10.0 ^^ n)
@@ -69,3 +71,32 @@ main = hspec $ do
       df₀ `shouldApproxEqual` (fromList [cos (x₀ + y₀), - sin (x₀ - y₀)])
       df₁ <- partialDerivative f Nothing (fromList [x₀, y₀]) 1
       df₁ `shouldApproxEqual` (fromList [cos (x₀ + y₀), sin (x₀ - y₀)])
+  describe "newtonRaphson" $ do
+    it "solves tanh(x) == 0" $ do
+      let f :: Monad m => Vector Double -> m (Vector Double)
+          f v = return . V.singleton $ tanh (v V.! 0)
+          df :: Monad m => Vector Double -> m (JacobianResult Double)
+          df v = return . DenseJacobian $ fromList [[1 / cosh (v V.! 0) ^^ 2]]
+      (RootResult x _) <-
+        newtonRaphson
+          (RootOptions (\_ r -> r < 1.0e-10) 10 Nothing)
+          f
+          df
+          (V.singleton 0.5)
+      x `shouldApproxEqual` (fromList [0.0])
+    it "solves x (x - 2) (x + 2) == 0 using numerical differentiation" $ do
+      let f :: Monad m => Vector Double -> m (Vector Double)
+          f v =
+            let x = v V.! 0
+             in return . V.singleton $ x ^^ 3 - 4 * x
+          df :: Monad m => Vector Double -> m (JacobianResult Double)
+          df = numericalJacobian f Nothing
+      -- let x = v V.! 0
+      --  in return . DenseJacobian $ fromList [[3 * x ^^ 2 - 4]]
+      (RootResult x _) <-
+        newtonRaphson
+          (RootOptions (\_ r -> r < 1.0e-10) 10 Nothing)
+          f
+          df
+          (V.singleton 15)
+      x `shouldApproxEqual` (fromList [2.0])

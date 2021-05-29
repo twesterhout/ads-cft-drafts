@@ -7,10 +7,14 @@ module EinsteinEquations.NewtonRaphson
     scal,
     solveDense,
     partialDerivative,
+    RootOptions (..),
+    RootResult (..),
+    newtonRaphson,
   )
 where
 
 import Control.Monad.Primitive
+import Control.Monad.ST
 import Data.Complex
 import Data.Vector.Storable (MVector (..), Vector)
 import qualified Data.Vector.Storable as V
@@ -140,7 +144,8 @@ solveDense (FortranMatrix p (n, m)) b
 {-# NOINLINE solveDense #-}
 
 invertJacobian :: forall a. BlasDatatype a => JacobianResult a -> Vector a -> Vector a
-invertJacobian = undefined
+invertJacobian (DenseJacobian j) b = solveDense j b
+invertJacobian _ _ = error "sparse Jacobians are not yet supported"
 
 type Cnrm2 a =
   Ptr BlasInt ->
@@ -230,24 +235,27 @@ scal α (MVector n p) = unsafeIOToPrim $
 
 partialDerivative ::
   forall a m.
-  (BlasDatatype a, PrimMonad m) =>
+  (BlasDatatype a, Monad m) =>
   (Vector a -> m (Vector a)) ->
   Maybe (Vector a) ->
   Vector a ->
   Int ->
   m (Vector a)
-partialDerivative f _f₀ x₀ i = do
-  f₀ <- case _f₀ of
+partialDerivative f _y₀ x₀ i = do
+  y₀ <- case _y₀ of
     Just y -> return y
     Nothing -> f x₀
-  x₁ <- do
-    t <- V.thaw x₀
-    MV.modify t (+ ε) i
-    V.unsafeFreeze t
-  f₁ <- V.unsafeThaw =<< f x₁
-  axpy (-1) f₀ f₁
-  scal (1 / ε) f₁
-  V.unsafeFreeze f₁
+  let x₁ = runST $ do
+        t <- V.thaw x₀
+        MV.modify t (+ ε) i
+        V.unsafeFreeze t
+  _y₁ <- f x₁
+  return $
+    runST $ do
+      t <- V.unsafeThaw _y₁
+      axpy (-1) y₀ t
+      scal (1 / ε) t
+      V.unsafeFreeze t
   where
     xNorm = nrm2 x₀
     scale =
@@ -262,25 +270,25 @@ partialDerivative f _f₀ x₀ i = do
 
 numericalJacobian ::
   forall a m.
-  (BlasDatatype a, PrimMonad m) =>
+  (BlasDatatype a, Monad m) =>
   (Vector a -> m (Vector a)) ->
   Maybe (Vector a) ->
   Vector a ->
   m (JacobianResult a)
-numericalJacobian f _f₀ x₀ = do
-  f₀ <- case _f₀ of
+numericalJacobian f _y₀ x₀ = do
+  y₀ <- case _y₀ of
     Just y -> return y
     Nothing -> f x₀
-  derivatives <- forM [0 .. V.length x₀ - 1] $ partialDerivative f (Just f₀) x₀
+  derivatives <- forM [0 .. V.length x₀ - 1] $ partialDerivative f (Just y₀) x₀
   return . DenseJacobian $
     FortranMatrix
       (fst . V.unsafeToForeignPtr0 . V.concat $ derivatives)
-      (V.length f₀, V.length x₀)
+      (V.length y₀, V.length x₀)
 
 data LineSearchOptions a
 
 data RootOptions a = RootOptions
-  { rootOptionsCriterion :: !(a -> a -> Bool),
+  { rootOptionsCriterion :: !(BlasRealPart a -> BlasRealPart a -> Bool),
     rootOptionsMaxIter :: !Int,
     rootOptionsLineSearch :: !(Maybe (LineSearchOptions a))
   }
@@ -288,21 +296,28 @@ data RootOptions a = RootOptions
 data RootState a = RootState
   { rootStateCurrent :: Vector a,
     rootStateValue :: Vector a,
-    rootStateResidual :: BlasRealPart a,
+    rootStateResidual :: BlasRealPart a
   }
+
+data RootResult a = RootResult
+  { rootResultCurrent :: Vector a,
+    rootResultHistory :: Vector (BlasRealPart a)
+  }
+
+deriving stock instance BlasDatatype a => Show (RootResult a)
 
 newtonRaphsonStep ::
   forall a m.
   (BlasDatatype a, PrimMonad m) =>
   (Vector a -> m (Vector a)) ->
   (Vector a -> m (JacobianResult a)) ->
-  RootState a
-  -> m (RootState a)
-newtonRaphsonStep f df (RootState x₀ y₀ r₀) = do
+  RootState a ->
+  m (RootState a)
+newtonRaphsonStep f df (RootState x₀ y₀ _) = do
   jacobian <- df x₀
   let δx = invertJacobian jacobian y₀
   x <- do
-    t <- MV.thaw x₀
+    t <- V.thaw x₀
     axpy (-1) δx t
     V.unsafeFreeze t
   y <- f x
@@ -315,13 +330,18 @@ newtonRaphson ::
   (Vector a -> m (Vector a)) ->
   (Vector a -> m (JacobianResult a)) ->
   Vector a ->
-  m (Vector a)
-newtonRaphson options f df _x₀ = do
+  m (RootResult a)
+newtonRaphson options f df x₀ = do
+  y₀ <- f x₀
   let iₘₐₓ = rootOptionsMaxIter options
-      go x₀ r₀ i
-        | i >= iₘₐₓ = return x₀
+      shouldStop = rootOptionsCriterion options r₀ . rootStateResidual
+      go acc !i !s
+        | i >= iₘₐₓ || shouldStop s = return (rootStateCurrent s, acc)
         | otherwise = do
-          undefined
-  f₀ <- f _x₀
-  let r₀ = nrm2 f₀
-  go _x₀
+          s' <- newtonRaphsonStep f df s
+          let !h = rootStateResidual s'
+          go (acc ++ [h]) (i + 1) s'
+      r₀ = nrm2 y₀
+      init = RootState x₀ y₀ r₀
+  (solution, history) <- go [r₀] 0 init
+  return $ RootResult solution (fromList history)
