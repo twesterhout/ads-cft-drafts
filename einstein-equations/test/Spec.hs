@@ -3,6 +3,7 @@ module Main (main) where
 import Data.Vector.Storable (Storable, Vector)
 import qualified Data.Vector.Storable as V
 import EinsteinEquations.NewtonRaphson
+import EinsteinEquations.Tensor
 import GHC.Exts (IsList (..))
 import Test.Hspec
 import Prelude hiding (toList)
@@ -76,7 +77,7 @@ main = hspec $ do
       let f :: Monad m => Vector Double -> m (Vector Double)
           f v = return . V.singleton $ tanh (v V.! 0)
           df :: Monad m => Vector Double -> m (JacobianResult Double)
-          df v = return . DenseJacobian $ fromList [[1 / cosh (v V.! 0) ^^ 2]]
+          df v = return . DenseJacobian $ fromList [[1 / cosh (v V.! 0) ^^ (2 :: Int)]]
       (RootResult x _) <-
         newtonRaphson
           (RootOptions (\_ r -> r < 1.0e-10) 10 Nothing)
@@ -88,7 +89,7 @@ main = hspec $ do
       let f :: Monad m => Vector Double -> m (Vector Double)
           f v =
             let x = v V.! 0
-             in return . V.singleton $ x ^^ 3 - 4 * x
+             in return . V.singleton $ x ^^ (3 :: Int) - 4 * x
           df :: Monad m => Vector Double -> m (JacobianResult Double)
           df = numericalJacobian f Nothing
       -- let x = v V.! 0
@@ -100,3 +101,10 @@ main = hspec $ do
           df
           (V.singleton 15)
       x `shouldApproxEqual` (fromList [2.0])
+  describe "tensorToList" $ do
+    it "converts Tensor to List" $ do
+      let v = V.generate 12 id
+          shape = fromList [2, 3]
+          strides = fromList [6, 1]
+          t = Tensor (fst $ V.unsafeToForeignPtr0 v) shape strides CPU
+      tensorToList t `shouldBe` [0, 1, 2, 6, 7, 8]

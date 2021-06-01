@@ -64,10 +64,12 @@ library
                      , vector
                      , streamly
                      , dlpack-hs
+                     , halide-haskell
   exposed-modules:     EinsteinEquations
                      , EinsteinEquations.Halide
                      , EinsteinEquations.Tensor
                      , EinsteinEquations.NewtonRaphson
+                     , EinsteinEquations.Collocation
   extra-libraries:     blas
                      , lapack
 

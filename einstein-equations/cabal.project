@@ -6,3 +6,7 @@ package *
 source-repository-package
   type: git
   location: https://github.com/twesterhout/dlpack-hs.git
+
+source-repository-package
+  type: git
+  location: https://github.com/twesterhout/halide-haskell.git
