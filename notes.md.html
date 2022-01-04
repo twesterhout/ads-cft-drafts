@@ -1,0 +1,110 @@
+<meta charset="utf-8">
+# Computational AdS/CFT notes
+
+## Defining the metric
+
+Suppose we have a metric $g_{\mu\nu}$.
+
+* $g^{\mu\nu}$ is then simply the inverse of $g_{\mu\nu}$.
+* \begin{equation}
+    \Gamma_{\lambda\mu\nu} = \frac{1}{2}\left(
+          \partial_\nu g_{\lambda\mu}
+        + \partial_\mu g_{\lambda\mu}
+        - \partial_\lambda g_{\mu\nu}
+    \right)
+    \label{eq:Gamma-ddd}
+  \end{equation}
+* \begin{equation}
+    \Gamma^\lambda_{\mu\nu} = g^{\lambda\rho} \Gamma_{\rho\mu\nu}
+    \label{eq:Gamma-Udd}
+  \end{equation}
+* \begin{equation}
+    \partial_\rho \Gamma_{\lambda\mu\nu} = \frac{1}{2}\left(
+          \partial_\rho \partial_\nu g_{\lambda\mu}
+        + \partial_\rho \partial_\mu g_{\lambda\mu}
+        - \partial_\rho \partial_\lambda g_{\mu\nu}
+    \right)
+  \end{equation}
+* \begin{equation}
+  \begin{aligned}
+    \partial_\kappa \Gamma^\lambda_{\mu\nu}
+        &= \partial_\kappa \left( g^{\lambda\rho} \Gamma_{\rho\mu\nu} \right) \\
+        &= \left( \partial_\kappa g^{\lambda\rho}\right) \Gamma_{\rho\mu\nu}
+           + g^{\lambda\rho} \left( \partial_\kappa \Gamma_{\rho\mu\nu} \right) \\
+        &= \left( \partial_\kappa g^{\lambda\rho} \right) \Gamma_{\rho\mu\nu}
+           + \frac{1}{2} g^{\lambda\rho}\left( \partial_\kappa \partial_\nu g_{\rho\mu}
+                                             + \partial_\kappa \partial_\mu g_{\rho\mu}
+                                             - \partial_\kappa \partial_\rho g_{\mu\nu} \right)
+  \end{aligned}
+  \end{equation}
+* Covariant derivative:
+  \begin{equation}
+    \nabla_\mu T_\nu = \partial_\mu T_\nu - \Gamma^\lambda_{\nu\mu} T_\lambda
+  \end{equation}
+
+### Maxwell equations
+
+Assume that we have access to $A_\nu$ as well as $\partial_\mu A_\nu$. Then
+
+\begin{equation}
+\begin{aligned}
+  & F_{\mu\nu} = \partial_\mu A_\nu - \partial_\nu A_\mu \\
+  & F^\mu_\nu = g^{\mu\rho} F_{\rho\nu} \\
+  & F^{\mu\nu} = g^{\rho\nu} F^\mu_\rho \\
+\end{aligned}
+\end{equation}
+
+And the corresponding equations of motions are
+
+\begin{equation}
+  \mathtt{EOM\_Maxwell}_\nu = \nabla_\mu F^\mu_\nu = 0
+\end{equation}
+
+We compute it as
+
+\begin{equation}
+  \nabla_\mu F^\mu_\nu = \partial_\mu F^\mu_\nu
+                       + \Gamma^\mu_{\lambda\mu} F^\lambda_\nu
+                       - \Gamma^\lambda_{\nu\mu} F^\mu_\lambda
+\end{equation}
+
+\begin{equation}
+\begin{aligned}
+  \frac{\delta}{\delta Q} \mathtt{EOM\_Maxwell}_\nu
+    &= \frac{\delta}{\delta Q} \nabla_\mu F^\mu_\nu \\
+    &= \frac{\delta}{\delta Q} \partial_\mu F^\mu_\nu
+    + \frac{\delta}{\delta Q} \left( \Gamma^\mu_{\lambda\mu} F^\lambda_\nu \right)
+    - \frac{\delta}{\delta Q} \left( \Gamma^\lambda_{\nu\mu} F^\mu_\lambda \right) \\
+    &= \frac{\delta}{\delta Q} \partial_\mu F^\mu_\nu
+    + \left( \frac{\delta}{\delta Q} \Gamma^\mu_{\lambda\mu}\right) F^\lambda_\nu
+    + \Gamma^\mu_{\lambda\mu} \frac{\delta}{\delta Q} F^\lambda_\nu \\
+    & - \left( \frac{\delta}{\delta Q} \Gamma^\lambda_{\nu\mu}\right) F^\mu_\lambda
+      - \Gamma^\lambda_{\nu\mu} \frac{\delta}{\delta Q} F^\mu_\lambda
+\end{aligned}
+\end{equation}
+
+\begin{equation}
+  \delta \Gamma^\lambda_{\mu\nu} =
+    \left( \delta g^{\lambda\rho} \right) \Gamma_{\rho\mu\nu}
+    + \frac{1}{2} g^{\lambda\rho}\left( \delta \partial_\nu g_{\rho\mu}
+                                      + \delta \partial_\mu g_{\rho\mu}
+                                      - \delta \partial_\rho g_{\mu\nu} \right)
+\end{equation}
+
+$\delta g_{\mu\nu}$, $\delta g^{\mu\nu}$, $\delta \partial_\lambda g_{\mu\nu}$, and
+$\delta \partial_\kappa \partial_\lambda g_{\mu\nu}$ are computed by
+Mathematica.
+
+Subsection
+-------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+<!-- Markdeep: --><style class="fallback">body{visibility:hidden;white-space:pre;font-family:monospace}</style><script src="markdeep.min.js" charset="utf-8"></script><script src="https://morgan3d.github.io/markdeep/latest/markdeep.min.js?" charset="utf-8"></script><script>window.alreadyProcessedMarkdeep||(document.body.style.visibility="visible")</script>
+
