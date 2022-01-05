@@ -2,6 +2,7 @@ module Main (main) where
 
 import Data.Vector.Storable (Storable, Vector)
 import qualified Data.Vector.Storable as V
+import EinsteinEquations.Collocation
 import EinsteinEquations.NewtonRaphson
 import EinsteinEquations.Tensor
 import GHC.Exts (IsList (..))
@@ -50,7 +51,7 @@ main = hspec $ do
               ]
           b₁ = fromList [(0.38405567 :: Double), 0.05975013, 0.31492095]
           x₁ = solveDense a₁ b₁
-      x₁ `shouldBe` (fromList [-1.172922576677295, -0.10262275813807724, -2.3030992629111187])
+      x₁ `shouldBe` (fromList [-1.1729225766772948, -0.10262275813807731, -2.303099262911118])
       let a₂ =
             fromList
               [ [0.13702166080474854, -0.19305512309074402],
@@ -69,7 +70,7 @@ main = hspec $ do
           x₀ = 0.1
           y₀ = 0.25
       df₀ <- partialDerivative f Nothing (fromList [x₀, y₀]) 0
-      df₀ `shouldApproxEqual` (fromList [cos (x₀ + y₀), - sin (x₀ - y₀)])
+      df₀ `shouldApproxEqual` (fromList [cos (x₀ + y₀), -sin (x₀ - y₀)])
       df₁ <- partialDerivative f Nothing (fromList [x₀, y₀]) 1
       df₁ `shouldApproxEqual` (fromList [cos (x₀ + y₀), sin (x₀ - y₀)])
   describe "newtonRaphson" $ do
@@ -105,6 +106,10 @@ main = hspec $ do
     it "converts Tensor to List" $ do
       let v = V.generate 12 id
           shape = fromList [2, 3]
-          strides = fromList [6, 1]
-          t = Tensor (fst $ V.unsafeToForeignPtr0 v) shape strides CPU
-      tensorToList t `shouldBe` [0, 1, 2, 6, 7, 8]
+          strides = fromList [6, 2]
+          (t :: Tensor 'CPU 2 Int) = Tensor (fst $ V.unsafeToForeignPtr0 v) shape strides
+      toList t `shouldBe` [[0, 2, 4], [6, 8, 10]]
+  describe "differentiationMatrixPeriodic" $ do
+    it "constructs differentiation matrix for periodic functions" $ do
+      print $ toList $ differentiationMatrixBounded 0 1 4
+      True `shouldBe` True
