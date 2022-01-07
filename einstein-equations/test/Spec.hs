@@ -109,7 +109,39 @@ main = hspec $ do
           strides = fromList [6, 2]
           (t :: Tensor 'CPU 2 Int) = Tensor (fst $ V.unsafeToForeignPtr0 v) shape strides
       toList t `shouldBe` [[0, 2, 4], [6, 8, 10]]
+    it "converts List to Tensor" $ do
+      let v = V.generate 8 id
+          (t :: Tensor 'CPU 2 Int) = fromList [[0, 1, 2, 3], [4, 5, 6, 7]]
+      V.unsafeFromForeignPtr0 (tensorData t) (tensorLength t) `shouldBe` v
   describe "differentiationMatrixPeriodic" $ do
     it "constructs differentiation matrix for periodic functions" $ do
       print $ toList $ differentiationMatrixBounded 0 1 4
       True `shouldBe` True
+  describe "reversePrimArray" $ do
+    it ".." $ do
+      reversePrimArray (fromList [1, 2, 3 :: Int]) `shouldBe` fromList [3, 2, 1]
+      reversePrimArray (fromList [1 :: Int]) `shouldBe` fromList [1]
+      reversePrimArray (fromList ([] :: [Int])) `shouldBe` fromList []
+  describe "rowMajorStrides" $ do
+    it ".." $ do
+      rowMajorStrides 1 (fromList []) `shouldBe` fromList []
+      rowMajorStrides 2 (fromList [3]) `shouldBe` fromList [2]
+      rowMajorStrides 1 (fromList [3, 2]) `shouldBe` fromList [2, 1]
+      rowMajorStrides 1 (fromList [1, 3, 2]) `shouldBe` fromList [6, 2, 1]
+      rowMajorStrides 1 (fromList [2, 1, 3, 2]) `shouldBe` fromList [6, 6, 2, 1]
+  describe "reshape" $ do
+    it ".." $ do
+      let (t :: Tensor 'CPU 2 Int) = fromList [[1, 2, 3], [4, 5, 6]]
+          t' = reshape @2 [3, 2] t
+      (toList <$> t') `shouldBe` (Just [[1, 2], [3, 4], [5, 6]])
+  describe "differentiateX" $
+    it "computes derivative w.r.t. the first coordinate" $ do
+      let n = 10
+          xs = gridPointsForPeriodic (2 * pi) n
+          dX = differentiationMatrixPeriodic (2 * pi) n
+          (Just t) = reshape [n, 1, 1, 1] $ tensorMap (\x -> sin x) xs
+      print $ toList $ tensorMap (\x -> cos x) xs
+      print $ toList <$> flatten (differentiateX dX t)
+      True `shouldBe` True
+
+-- t = generate1 n (\i -> sin (
