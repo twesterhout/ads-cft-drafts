@@ -57,15 +57,29 @@ common common-options
                        OverloadedStrings
                        StandaloneDeriving
                        AllowAmbiguousTypes
+                       MultiParamTypeClasses
+                       FunctionalDependencies
+                       NoMonomorphismRestriction
+                       InstanceSigs
+                       TypeOperators
+                       MagicHash
+                       UnboxedTuples
 
 library
   import:              common-options
   hs-source-dirs:      src
   build-depends:       primitive
                      , vector
+                     , text
                      , streamly
+                     , list-t
+                     , foldl
                      , dlpack-hs
+                     , tblis-hs
                      , halide-haskell
+                     , reflection
+                     , hasktorch >= 0.2 && < 0.3
+                     , libtorch-ffi >= 1.9.0.0
   exposed-modules:     EinsteinEquations
                      , EinsteinEquations.Tensor
                      , EinsteinEquations.NewtonRaphson
@@ -73,9 +87,10 @@ library
   extra-lib-dirs:      /home/tom/src/ads-cft/kernels/build
   extra-libraries:     blas
                      , lapack
-                     , einstein_equations
+                     -- , einstein_equations
                      , differentiation_matrix_periodic
                      , differentiation_matrix_bounded
+                     , differentiation_matrix_periodic.runtime
 
 executable einstein-equations
   import:              common-options
@@ -93,7 +108,11 @@ test-suite einstein-equations-test
   main-is:             Spec.hs
   build-depends:       einstein-equations
                      , vector
+                     , streamly
+                     , primitive
+                     , foldl
                      , hspec
+                     , hasktorch >= 0.2 && < 0.3
   ghc-options:         -threaded
                        -rtsopts
                        -with-rtsopts=-N

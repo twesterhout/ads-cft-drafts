@@ -1,12 +1,16 @@
 module Main (main) where
 
+import Control.Foldl (FoldM (..))
+import Data.Primitive.Types (Prim)
 import Data.Vector.Storable (Storable, Vector)
 import qualified Data.Vector.Storable as V
 import EinsteinEquations.Collocation
 import EinsteinEquations.NewtonRaphson
 import EinsteinEquations.Tensor
 import GHC.Exts (IsList (..))
+import qualified Streamly.Prelude as S
 import Test.Hspec
+import qualified Torch
 import Prelude hiding (toList)
 
 roundTo :: RealFrac a => a -> Int -> a
@@ -20,6 +24,24 @@ shouldApproxEqual ::
 shouldApproxEqual x y = V.zipWithM_ (\a b -> roundTo a n `shouldBe` roundTo b n) x y
   where
     n = 7
+
+-- tensorShouldEqual ::
+--   (SupportedRank r, Prim a, Show a, RealFrac a) =>
+--   Tensor 'CPU r a ->
+--   Tensor 'CPU r a ->
+--   IO ()
+-- tensorShouldEqual a b = do
+--   (tensorShape a) `shouldBe` (tensorShape b)
+--   blockFoldM (FoldM step initial extract) (tensorShape a)
+--   where
+--     n = 10
+--     eq x y = roundTo x n `shouldBe` roundTo y n
+--     initial = pure ()
+--     extract _ = pure ()
+--     step () i = do
+--       a' <- read a i
+--       b' <- read b i
+--       eq a' b'
 
 main :: IO ()
 main = hspec $ do
@@ -102,46 +124,50 @@ main = hspec $ do
           df
           (V.singleton 15)
       x `shouldApproxEqual` (fromList [2.0])
-  describe "tensorToList" $ do
-    it "converts Tensor to List" $ do
-      let v = V.generate 12 id
-          shape = fromList [2, 3]
-          strides = fromList [6, 2]
-          (t :: Tensor 'CPU 2 Int) = Tensor (fst $ V.unsafeToForeignPtr0 v) shape strides
-      toList t `shouldBe` [[0, 2, 4], [6, 8, 10]]
-    it "converts List to Tensor" $ do
-      let v = V.generate 8 id
-          (t :: Tensor 'CPU 2 Int) = fromList [[0, 1, 2, 3], [4, 5, 6, 7]]
-      V.unsafeFromForeignPtr0 (tensorData t) (tensorLength t) `shouldBe` v
+  -- describe "tensorToList" $ do
+  --   it "converts Tensor to List" $ do
+  --     let v = V.generate 12 id
+  --         shape = fromList [2, 3]
+  --         strides = fromList [6, 2]
+  --         (t :: Tensor 'CPU 2 Int) = Tensor (fst $ V.unsafeToForeignPtr0 v) shape strides
+  --     toList t `shouldBe` [[0, 2, 4], [6, 8, 10]]
+  --   it "converts List to Tensor" $ do
+  --     let v = V.generate 8 id
+  --         (t :: Tensor 'CPU 2 Int) = fromList [[0, 1, 2, 3], [4, 5, 6, 7]]
+  --     V.unsafeFromForeignPtr0 (tensorData t) (tensorLength t) `shouldBe` v
   describe "differentiationMatrixPeriodic" $ do
     it "constructs differentiation matrix for periodic functions" $ do
-      print $ toList $ differentiationMatrixBounded 0 1 4
+      print $ differentiationMatrixBounded 0 1 4
       True `shouldBe` True
-  describe "reversePrimArray" $ do
-    it ".." $ do
-      reversePrimArray (fromList [1, 2, 3 :: Int]) `shouldBe` fromList [3, 2, 1]
-      reversePrimArray (fromList [1 :: Int]) `shouldBe` fromList [1]
-      reversePrimArray (fromList ([] :: [Int])) `shouldBe` fromList []
-  describe "rowMajorStrides" $ do
-    it ".." $ do
-      rowMajorStrides 1 (fromList []) `shouldBe` fromList []
-      rowMajorStrides 2 (fromList [3]) `shouldBe` fromList [2]
-      rowMajorStrides 1 (fromList [3, 2]) `shouldBe` fromList [2, 1]
-      rowMajorStrides 1 (fromList [1, 3, 2]) `shouldBe` fromList [6, 2, 1]
-      rowMajorStrides 1 (fromList [2, 1, 3, 2]) `shouldBe` fromList [6, 6, 2, 1]
-  describe "reshape" $ do
-    it ".." $ do
-      let (t :: Tensor 'CPU 2 Int) = fromList [[1, 2, 3], [4, 5, 6]]
-          t' = reshape @2 [3, 2] t
-      (toList <$> t') `shouldBe` (Just [[1, 2], [3, 4], [5, 6]])
+  -- describe "reversePrimArray" $ do
+  --   it ".." $ do
+  --     reversePrimArray (fromList [1, 2, 3 :: Int]) `shouldBe` fromList [3, 2, 1]
+  --     reversePrimArray (fromList [1 :: Int]) `shouldBe` fromList [1]
+  --     reversePrimArray (fromList ([] :: [Int])) `shouldBe` fromList []
+  -- describe "rowMajorStrides" $ do
+  --   it ".." $ do
+  --     rowMajorStrides 1 (fromList []) `shouldBe` fromList []
+  --     rowMajorStrides 2 (fromList [3]) `shouldBe` fromList [2]
+  --     rowMajorStrides 1 (fromList [3, 2]) `shouldBe` fromList [2, 1]
+  --     rowMajorStrides 1 (fromList [1, 3, 2]) `shouldBe` fromList [6, 2, 1]
+  --     rowMajorStrides 1 (fromList [2, 1, 3, 2]) `shouldBe` fromList [6, 6, 2, 1]
+  -- describe "reshape" $ do
+  --   it ".." $ do
+  --     let (t :: Tensor 'CPU 2 Int) = fromList [[1, 2, 3], [4, 5, 6]]
+  --         t' = reshape @2 [3, 2] t
+  --     (toList <$> t') `shouldBe` (Just [[1, 2], [3, 4], [5, 6]])
   describe "differentiateX" $
     it "computes derivative w.r.t. the first coordinate" $ do
-      let n = 10
-          xs = gridPointsForPeriodic (2 * pi) n
-          dX = differentiationMatrixPeriodic (2 * pi) n
-          (Just t) = reshape [n, 1, 1, 1] $ tensorMap (\x -> sin x) xs
-      print $ toList $ tensorMap (\x -> cos x) xs
-      print $ toList <$> flatten (differentiateX dX t)
-      True `shouldBe` True
+      let n = 6
+          xs = gridPointsForPeriodic (pi) n
+          dX = differentiationMatrixPeriodic n
+          f = Torch.reshape [n, 1, 1, 1] $ Torch.sin (2 * xs)
+          -- reshape [n, 1, 1, 1] $ tensorMap (\x -> sin (2 * x)) xs
+          dF = differentiateX dX f
+          dFExpected = Torch.reshape [n, 1, 1, 1] $ Torch.cos (2 * xs)
+      print $ dX
+      print $ dFExpected
+      print $ dF
+      Torch.allclose dF dFExpected 1.0e-10 1.0e-12 False `shouldBe` True
 
 -- t = generate1 n (\i -> sin (
