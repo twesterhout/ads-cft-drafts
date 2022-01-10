@@ -5,6 +5,9 @@ module EinsteinEquations.Tensor
     generateM2,
     loopM,
     foldLoopM,
+    linalgSolve,
+    strides,
+    norm,
   )
 where
 
@@ -55,6 +58,7 @@ import Streamly.Prelude (IsStream, MonadAsync, Serial, SerialT)
 import qualified Streamly.Prelude as S
 import System.IO.Unsafe
 import Torch
+import qualified Torch.Functional.Internal
 import Torch.Internal.Cast (cast1)
 import qualified Torch.Internal.Managed.Type.Tensor as ATen
 
@@ -67,6 +71,18 @@ symbolToText = toText $ GHC.TypeLits.symbolVal (Proxy @s)
 
 strides :: Tensor -> [Int]
 strides t = unsafePerformIO $ (cast1 ATen.tensor_strides) t
+
+linalgSolve ::
+  -- | A
+  Tensor ->
+  -- | B
+  Tensor ->
+  -- | x = A⁻¹B
+  Tensor
+linalgSolve = Torch.Functional.Internal.linalg_solve
+
+norm :: Tensor -> Float -> Tensor
+norm = Torch.Functional.Internal.normAll
 
 instance IsHalideBuffer Tensor where
   withHalideBuffer :: forall b. Tensor -> (Ptr HalideBuffer -> IO b) -> IO b

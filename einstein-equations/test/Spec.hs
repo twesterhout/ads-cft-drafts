@@ -6,10 +6,11 @@ import Data.Vector.Storable (Storable, Vector)
 import qualified Data.Vector.Storable as V
 import EinsteinEquations.Collocation
 import EinsteinEquations.NewtonRaphson
-import EinsteinEquations.Tensor
+-- import EinsteinEquations.Tensor
 import GHC.Exts (IsList (..))
 import qualified Streamly.Prelude as S
 import Test.Hspec
+import Torch (Tensor, allclose, asTensor, asValue, (!))
 import qualified Torch
 import Prelude hiding (toList)
 
@@ -45,85 +46,105 @@ shouldApproxEqual x y = V.zipWithM_ (\a b -> roundTo a n `shouldBe` roundTo b n)
 
 main :: IO ()
 main = hspec $ do
-  describe "nrm2" $ do
-    it "computes L₂ norm of a vector" $ do
-      let x :: (Storable a, Floating a) => Vector a
-          x =
-            fromList
-              [ -0.4495389460471282,
-                0.1507946864613462,
-                -0.2582198045631925,
-                0.19783960251972765,
-                -0.08502606567957727,
-                -0.027089038952040734,
-                -0.45259419418301516,
-                -0.34808112568663063,
-                -0.2492391171933619,
-                -0.03652065590737674
-              ]
-      nrm2 (x :: Vector Double) `shouldBe` 0.8532651379629458
-      nrm2 (x :: Vector Float) `shouldBe` 0.8532651
-  describe "solveDense" $ do
-    it "solves linear systems of equations" $ do
-      let a₁ =
-            fromList
-              [ [-0.12569571, -0.2457441, -0.0917917],
-                [0.4542093, 0.23042252, -0.2675304],
-                [0.26157499, -0.38497729, -0.2527988]
-              ]
-          b₁ = fromList [(0.38405567 :: Double), 0.05975013, 0.31492095]
-          x₁ = solveDense a₁ b₁
-      x₁ `shouldBe` (fromList [-1.1729225766772948, -0.10262275813807731, -2.303099262911118])
-      let a₂ =
-            fromList
-              [ [0.13702166080474854, -0.19305512309074402],
-                [0.036100149154663086, 0.4381260871887207]
-              ]
-          b₂ = fromList [-0.3771229088306427 :: Float, 0.23093461990356445]
-          x₂ = solveDense a₂ b₂
-      x₂ `shouldBe` (fromList [-1.8006048202514648, 0.675460159778595])
+  -- describe "nrm2" $ do
+  --   it "computes L₂ norm of a vector" $ do
+  --     let x :: (Storable a, Floating a) => Vector a
+  --         x =
+  --           fromList
+  --             [ -0.4495389460471282,
+  --               0.1507946864613462,
+  --               -0.2582198045631925,
+  --               0.19783960251972765,
+  --               -0.08502606567957727,
+  --               -0.027089038952040734,
+  --               -0.45259419418301516,
+  --               -0.34808112568663063,
+  --               -0.2492391171933619,
+  --               -0.03652065590737674
+  --             ]
+  --     nrm2 (x :: Vector Double) `shouldBe` 0.8532651379629458
+  --     nrm2 (x :: Vector Float) `shouldBe` 0.8532651
+  -- describe "solveDense" $ do
+  --   it "solves linear systems of equations" $ do
+  --     let a₁ =
+  --           fromList
+  --             [ [-0.12569571, -0.2457441, -0.0917917],
+  --               [0.4542093, 0.23042252, -0.2675304],
+  --               [0.26157499, -0.38497729, -0.2527988]
+  --             ]
+  --         b₁ = fromList [(0.38405567 :: Double), 0.05975013, 0.31492095]
+  --         x₁ = solveDense a₁ b₁
+  --     x₁ `shouldBe` (fromList [-1.1729225766772948, -0.10262275813807731, -2.303099262911118])
+  --     let a₂ =
+  --           fromList
+  --             [ [0.13702166080474854, -0.19305512309074402],
+  --               [0.036100149154663086, 0.4381260871887207]
+  --             ]
+  --         b₂ = fromList [-0.3771229088306427 :: Float, 0.23093461990356445]
+  --         x₂ = solveDense a₂ b₂
+  --     x₂ `shouldBe` (fromList [-1.8006048202514648, 0.675460159778595])
   describe "partialDerivative" $ do
     it "computes partial derivatives numerically" $ do
-      let f :: Monad m => Vector Double -> m (Vector Double)
+      let f :: Monad m => Tensor -> m Tensor
           f v =
-            let x = v V.! 0
-                y = v V.! 1
-             in return . fromList $ [sin (x + y), cos (x - y)]
-          x₀ = 0.1
-          y₀ = 0.25
-      df₀ <- partialDerivative f Nothing (fromList [x₀, y₀]) 0
-      df₀ `shouldApproxEqual` (fromList [cos (x₀ + y₀), -sin (x₀ - y₀)])
-      df₁ <- partialDerivative f Nothing (fromList [x₀, y₀]) 1
-      df₁ `shouldApproxEqual` (fromList [cos (x₀ + y₀), sin (x₀ - y₀)])
+            let x = asValue (v ! (0 :: Int)) :: Float
+                y = asValue (v ! (1 :: Int)) :: Float
+             in pure . asTensor $ [sin (x + y), cos (x - y)]
+          x₀ = 0.1 :: Float
+          y₀ = 0.25 :: Float
+      df₀ <- partialDerivative f Nothing (asTensor [x₀, y₀]) 0
+      print $ df₀
+      print $ asTensor [cos (x₀ + y₀), -sin (x₀ - y₀)]
+      Torch.allclose
+        df₀
+        (asTensor [cos (x₀ + y₀), -sin (x₀ - y₀)])
+        1.0e-3
+        1.0e-5
+        False
+        `shouldBe` True
+      df₁ <- partialDerivative f Nothing (asTensor [x₀, y₀]) 1
+      print $ df₁
+      print $ asTensor [cos (x₀ + y₀), sin (x₀ - y₀)]
+      Torch.allclose
+        df₁
+        (asTensor [cos (x₀ + y₀), sin (x₀ - y₀)])
+        2.0e-3
+        1.0e-5
+        False
+        `shouldBe` True
   describe "newtonRaphson" $ do
     it "solves tanh(x) == 0" $ do
-      let f :: Monad m => Vector Double -> m (Vector Double)
-          f v = return . V.singleton $ tanh (v V.! 0)
-          df :: Monad m => Vector Double -> m (JacobianResult Double)
-          df v = return . DenseJacobian $ fromList [[1 / cosh (v V.! 0) ^^ (2 :: Int)]]
+      let f :: Monad m => Tensor -> m Tensor
+          f = pure . Torch.tanh
+          df :: Monad m => Tensor -> m JacobianResult
+          df v = pure . DenseJacobian $ asTensor [[1 / cosh x ^^ (2 :: Int)]]
+            where
+              x = asValue (v ! (0 :: Int)) :: Float
       (RootResult x _) <-
         newtonRaphson
-          (RootOptions (\_ r -> r < 1.0e-10) 10 Nothing)
+          (RootOptions (\_ r -> r < 1.0e-8) 10 Nothing)
           f
           df
-          (V.singleton 0.5)
-      x `shouldApproxEqual` (fromList [0.0])
-    it "solves x (x - 2) (x + 2) == 0 using numerical differentiation" $ do
-      let f :: Monad m => Vector Double -> m (Vector Double)
-          f v =
-            let x = v V.! 0
-             in return . V.singleton $ x ^^ (3 :: Int) - 4 * x
-          df :: Monad m => Vector Double -> m (JacobianResult Double)
-          df = numericalJacobian f Nothing
-      -- let x = v V.! 0
-      --  in return . DenseJacobian $ fromList [[3 * x ^^ 2 - 4]]
-      (RootResult x _) <-
-        newtonRaphson
-          (RootOptions (\_ r -> r < 1.0e-10) 10 Nothing)
-          f
-          df
-          (V.singleton 15)
-      x `shouldApproxEqual` (fromList [2.0])
+          (asTensor [0.5 :: Float])
+      allclose x (asTensor [0.0 :: Float]) 1.0e-5 1.0e-7 False `shouldBe` True
+  it "solves x (x - 2) (x + 2) == 0 using numerical differentiation" $ do
+    let f :: Tensor -> IO Tensor
+        f x = pure $ x ^^ 3 - 4 * x
+        df :: Tensor -> IO JacobianResult
+        df x = do
+          r <- numericalJacobian f Nothing x
+          -- print r
+          pure r
+    -- let x = v V.! 0
+    --  in return . DenseJacobian $ fromList [[3 * x ^^ 2 - 4]]
+    (RootResult x _) <-
+      newtonRaphson
+        (RootOptions (\_ r -> r < 1.0e-8) 10 Nothing)
+        f
+        df
+        (asTensor [15 :: Float])
+    print x
+    allclose x (asTensor [2.0 :: Float]) 1.0e-5 1.0e-7 False `shouldBe` True
   -- describe "tensorToList" $ do
   --   it "converts Tensor to List" $ do
   --     let v = V.generate 12 id
