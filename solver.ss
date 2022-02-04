@@ -23,9 +23,6 @@
 (load-shared-object "/home/tom/src/ads-cft/kernels/build/libmy_runtime.so")
 (load-shared-object "./libutils.so")
 
-(define print-halide-type
-  (foreign-procedure "print_halide_type_t" ((* halide_type_t)) void))
-
 (define halide-malloc
   (foreign-procedure "custom_alloc" (uptr size_t) uptr))
 
@@ -37,6 +34,10 @@
     [code unsigned-8]
     [bits unsigned-8]
     [lanes unsigned-16]))
+
+(define print-halide-type
+  (foreign-procedure "print_halide_type_t" ((* halide_type_t)) void))
+
 
 (define-ftype halide_dimension_t
   (struct
@@ -223,6 +224,10 @@
   (syntax-rules ()
     [(_ ptr dtype i) (foreign-ref dtype ptr (* i (foreign-sizeof dtype)))]))
 
+(define tensor-numel
+  (lambda (t)
+    (product (vector->list (tensor-shape t)))))
+
 (define tensor-stride
   (lambda (t i)
     (vector-ref (tensor-strides t) i)))
@@ -260,14 +265,36 @@
 
 (define tensor-reshape
   (lambda (t shape)
+    (unless (= (product shape) (tensor-numel t))
+      (assertion-violation 'tensor-reshape
+                           "incompatible shapes"
+                           shape
+                           (tensor-shape t)))
     (cond
       [(tensor-row-major? t)
-         (let ([]))])))
+        (let* ([s (tensor-stride t (- (tensor-ndim t) 1))]
+               [strides (vector-map (lambda (x) (* x s)) (row-major-strides shape))])
+          (make-tensor (tensor-storage t)
+                       (tensor-dtype t)
+                       (list->vector shape)
+                       strides
+                       (tensor-offset t)))]
+      [else (assertion-violation 'tensor-shape "only row-major tensors may be reshaped")])))
 
-; (define tensor->list
-;   (lambda (t)
-;     (cond
-;       [])))
+(define tensor->vector
+  (lambda (t)
+    (cond
+      [(= (tensor-ndim t) 0) (list)]
+      [(= (tensor-ndim t) 1)
+        (let ([v (make-vector (tensor-size t 0))])
+          (do ([i 0 (+ i 1)])
+              ((= i (vector-length v)) v)
+            (vector-set! v i (tensor-get t i))))]
+      [else
+        (let ([v (make-vector (tensor-size t 0))])
+          (do ([i 0 (+ i 1)])
+              ((= i (vector-length v)) v)
+            (vector-set! v i (tensor->list (tensor-slice t 0 i)))))])))
 
 (define differentiation_matrix_bounded_kernel
   (lambda (lower upper t)
@@ -283,6 +310,18 @@
     (let ([t (tensor-new 'double-float (list n n))])
       (differentiation_matrix_bounded_kernel lower upper t)
       t)))
+
+(define grid-bounded
+  (lambda (lower upper n)
+    (let ([foreign-kernel (foreign-procedure "bounded_grid"
+                            (double-float double-float int (* halide_buffer_t)) void)]
+          [t (tensor-new 'double-float (list n))])
+      (with (delay (tensor->halide_buffer_t t)) halide_buffer_t-free
+        (lambda (buffer)
+          (foreign-kernel lower upper n buffer)
+          t)))))
+
+
 
 ; (define with-halide-double
 ;   (lambda (action)
@@ -301,9 +340,9 @@
 
 (do ([i 3 (fx- i 1)])
     ((fx= i 0))
-  (malloc-tensor-storage 'double-float 10)
+  (malloc-Storage 'double-float 10)
   (collect))
-(free-dropped-tensor-storage)
+(free-dropped-Storage)
 ; (display (tensor-get t 1))
 ; (newline)
 ; (display (tensor-get t 2))
