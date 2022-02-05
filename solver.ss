@@ -321,8 +321,92 @@
           (foreign-kernel lower upper n buffer)
           t)))))
 
+(define-ftype
+  [tblis-len_type ptrdiff_t]
+  [tblis-stride_type ptrdiff_t]
+  [tblis-label_type char]
+  [tblis-type int]
+  [tblis-scalar
+    (struct
+      (type tblis-type)
+      (scalar (union (float single-float)
+                     (double double-float)
+                     (complex-float (array 2 single-float))
+                     (complex-double (array 2 double-float)))))]
+  [tblis-tensor
+    (struct
+      (type tblis-type)
+      (conj int)
+      (scalar tblis-scalar)
+      (data void*)
+      (ndim unsigned)
+      (len (* tblis-len_type))
+      (stride (* tblis-stride_type)))])
 
+; typedef enum
+; {
+;     TYPE_SINGLE   = 0,
+;     TYPE_FLOAT    = TYPE_SINGLE,
+;     TYPE_DOUBLE   = 1,
+;     TYPE_SCOMPLEX = 2,
+;     TYPE_DCOMPLEX = 3
+; } type_t;
+(define symbol->tblis-type
+  (lambda (dtype)
+    (cond
+      [(equal? dtype 'single-float) 0]
+      [(equal? dtype 'double-float) 1])))
 
+(define tblis-scalar-set!
+  (lambda (ptr x)
+    (cond
+      [(real? x)
+        (ftype-set! tblis-scalar (type) ptr (symbol->tblis-type 'double-float))
+        (ftype-set! tblis-scalar (scalar double) ptr (inexact x))])))
+
+(define tblis-scalar->number
+  (lambda (ptr)
+    (let ([type (ftype-ref tblis-scalar (type) ptr)])
+      (cond
+        [(equal? type (symbol->tblis-type 'single-float)) (ftype-ref tblis-scalar (scalar float) ptr)]
+        [(equal? type (symbol->tblis-type 'double-float)) (ftype-ref tblis-scalar (scalar double) ptr)]))))
+
+(define-syntax foreign-alloc-array
+  (syntax-rules ()
+    [(_ dtype n) (make-ftype-pointer dtype (foreign-alloc (* (ftype-sizeof dtype) n)))]))
+
+(define-syntax foreign-alloc-object
+  (syntax-rules ()
+    [(_ dtype) (foreign-alloc-array dtype 1)]))
+
+(define tensor->tblis-tensor
+  (lambda (t scale)
+    (let* ([ndim (tensor-ndim t)]
+           [shape (foreign-alloc-array tblis-len_type ndim)]
+           [strides (foreign-alloc-array tblis-stride_type ndim)]
+           [ptr (foreign-alloc-object tblis-tensor)])
+      (ftype-set! tblis-tensor (type) ptr (symbol->tblis-type (tensor-dtype t)))
+      (ftype-set! tblis-tensor (conj) ptr 0)
+      (tblis-scalar-set! (ftype-&ref tblis-tensor (scalar) ptr) scale)
+      (ftype-set! tblis-tensor (data) ptr (tensor-data t))
+      (ftype-set! tblis-tensor (ndim) ptr ndim)
+      (do ([i 0 (+ i 1)])
+          (= i ndim)
+        (ftype-set! tblis-len_type () shape i (tensor-size t i))
+        (ftype-set! tblis-stride_type () strides i (tensor-stride t i)))
+      (ftype-set! tblis-tensor (len) ptr shape)
+      (ftype-set! tblis-tensor (stride) ptr strides)
+      ptr)))
+
+(define tblis-tensor-free
+  (lambda (ptr)
+    (foreign-free (ftype-pointer-address (ftype-ref tblis-tensor (len) ptr)))
+    (foreign-free (ftype-pointer-address (ftype-ref tblis-tensor (stride) ptr)))
+    (foreign-free (ftype-pointer-address ptr))))
+
+(define with-scaled-tblis-tensor
+  (lambda (t scale action)
+    (with (delay (tensor->tblis-tensor t scale)) tblis-tensor-free action)))
 ; (define with-halide-double
 ;   (lambda (action)
 ;     (alloca
