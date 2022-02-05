@@ -407,6 +407,14 @@
 (define with-scaled-tblis-tensor
   (lambda (t scale action)
     (with (delay (tensor->tblis-tensor t scale)) tblis-tensor-free action)))
+
+(define (string-find needle haystack)
+  (let loop ([n (string-length haystack)]
+             [i 0])
+    (cond
+      [(fx=? i n) '()]
+      [(char=? needle (string-ref haystack i)) i]
+      [else (loop n (fx+ i 1))])))
 ; (define with-halide-double
 ;   (lambda (action)
 ;     (alloca
