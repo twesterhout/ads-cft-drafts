@@ -318,11 +318,11 @@
 
 (define (internal-vector-shape xs)
   (reverse
-      (let loop ([acc '()] [v xs])
-        (cond
-          [(or (fx=? (vector-length v) 0) (number? (vector-ref v 0))) (cons (vector-length v) acc)]
-          [(vector? (vector-ref v 0)) (loop (cons (vector-length v) acc) (vector-ref v 0))]
-          [else (assertion-violation 'internal-vector-shape "expected a vector" v)]))))
+    (let loop ([acc '()] [v xs])
+      (cond
+        [(or (fx=? (vector-length v) 0) (number? (vector-ref v 0))) (cons (vector-length v) acc)]
+        [(vector? (vector-ref v 0)) (loop (cons (vector-length v) acc) (vector-ref v 0))]
+        [else (assertion-violation 'internal-vector-shape "expected a vector" v)]))))
 
 (define (internal-tensor-set-from-vector! t v)
   (unless (fx=? (vector-length v) (tensor-size t 0))
