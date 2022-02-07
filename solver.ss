@@ -5,6 +5,7 @@
   (foreign-procedure __collect_safe "sleep" (unsigned) unsigned))
 
 (load-shared-object "/home/tom/src/petsc-prefix/lib/libpetsc.so.3.16")
+(load-shared-object "/home/tom/src/tblis-prefix/lib/libtblis.so")
 
 (define-ftype char* (* char))
 (define-ftype char** (* char*))
@@ -144,6 +145,9 @@
                 [strides (row-major-strides shape)])
            (make-tensor storage dtype (list->vector shape) strides 0))])))
 
+(define (tensor-similar t)
+  (tensor-new (tensor-dtype t) (vector->list (tensor-shape t))))
+
 (define tensor-ndim
   (lambda (t) (vector-length (tensor-shape t))))
 (define tensor-data
@@ -224,6 +228,10 @@
   (syntax-rules ()
     [(_ ptr dtype i) (foreign-ref dtype ptr (* i (foreign-sizeof dtype)))]))
 
+(trace-define-syntax pointer-set!
+  (syntax-rules ()
+    [(_ ptr dtype i x) (foreign-set! dtype ptr (* i (foreign-sizeof dtype)) x)]))
+
 (define tensor-numel
   (lambda (t)
     (product (vector->list (tensor-shape t)))))
@@ -245,6 +253,18 @@
                           (tensor-dtype t)
                           (+ (* i (tensor-stride t 0))
                              (* j (tensor-stride t 1)))))))
+
+(define tensor-set!
+  (case-lambda
+    ((t i x) (pointer-set! (tensor-data t)
+                           (tensor-dtype t)
+                           (* i (tensor-stride t 0))
+                           (inexact x)))
+    ((t i j x) (pointer-set! (tensor-data t)
+                             (tensor-dtype t)
+                             (+ (* i (tensor-stride t 0))
+                                (* j (tensor-stride t 1)))
+                             (inexact x)))))
 
 (define tensor-slice
   (lambda (t dim i)
@@ -294,7 +314,29 @@
         (let ([v (make-vector (tensor-size t 0))])
           (do ([i 0 (+ i 1)])
               ((= i (vector-length v)) v)
-            (vector-set! v i (tensor->list (tensor-slice t 0 i)))))])))
+            (vector-set! v i (tensor->vector (tensor-slice t 0 i)))))])))
+
+(define (internal-vector-shape xs)
+  (reverse
+      (let loop ([acc '()] [v xs])
+        (cond
+          [(or (fx=? (vector-length v) 0) (number? (vector-ref v 0))) (cons (vector-length v) acc)]
+          [(vector? (vector-ref v 0)) (loop (cons (vector-length v) acc) (vector-ref v 0))]
+          [else (assertion-violation 'internal-vector-shape "expected a vector" v)]))))
+
+(define (internal-tensor-set-from-vector! t v)
+  (unless (fx=? (vector-length v) (tensor-size t 0))
+    (assertion-violation 'tensor-set "incompatible shape"))
+  (do ([i 0 (+ i 1)])
+      ((fx=? i (vector-length v)))
+    (if (fx>? (tensor-ndim t) 1)
+      (internal-tensor-set-from-vector! (tensor-slice t 0 i) (vector-ref v i))
+      (tensor-set! t i (vector-ref v i)))))
+
+(define (vector->tensor v)
+  (let ([t (tensor-new 'double-float (internal-vector-shape v))])
+    (internal-tensor-set-from-vector! t v)
+    t))
 
 (define differentiation_matrix_bounded_kernel
   (lambda (lower upper t)
@@ -328,11 +370,11 @@
   [tblis-type int]
   [tblis-scalar
     (struct
-      (type tblis-type)
       (scalar (union (float single-float)
                      (double double-float)
                      (complex-float (array 2 single-float))
-                     (complex-double (array 2 double-float)))))]
+                     (complex-double (array 2 double-float))))
+      (type tblis-type))]
   [tblis-tensor
     (struct
       (type tblis-type)
@@ -355,14 +397,17 @@
   (lambda (dtype)
     (cond
       [(equal? dtype 'single-float) 0]
-      [(equal? dtype 'double-float) 1])))
+      [(equal? dtype 'double-float) 1]
+      [else (error 'symbol->tblis-type "unsupported type" dtype)])))
 
 (define tblis-scalar-set!
   (lambda (ptr x)
     (cond
       [(real? x)
         (ftype-set! tblis-scalar (type) ptr (symbol->tblis-type 'double-float))
-        (ftype-set! tblis-scalar (scalar double) ptr (inexact x))])))
+        (ftype-set! tblis-scalar (scalar double) ptr (inexact x))]
+      [else
+        (assertion-violation 'tblis-scalar-set! "expected a real number" x)])))
 
 (define tblis-scalar->number
   (lambda (ptr)
@@ -391,7 +436,7 @@
       (ftype-set! tblis-tensor (data) ptr (tensor-data t))
       (ftype-set! tblis-tensor (ndim) ptr ndim)
       (do ([i 0 (+ i 1)])
-          (= i ndim)
+          ((fx=? i ndim))
         (ftype-set! tblis-len_type () shape i (tensor-size t i))
         (ftype-set! tblis-stride_type () strides i (tensor-stride t i)))
       (ftype-set! tblis-tensor (len) ptr shape)
@@ -415,6 +460,75 @@
       [(fx=? i n) '()]
       [(char=? needle (string-ref haystack i)) i]
       [else (loop n (fx+ i 1))])))
+
+(define (string-contains? needle haystack)
+   (not (null? (string-find needle haystack))))
+
+(define (string-split needle haystack)
+  (let loop ([acc '()]
+             [rest haystack])
+    (let ([i (string-find needle rest)])
+      (if (null? i)
+          (reverse (cons rest acc))
+          (loop (cons (substring rest 0 i) acc)
+                (substring rest (+ i 1) (string-length rest)))))))
+
+(define (tblis-add-check-args a index-a b index-b)
+  (unless (for-all (lambda (i) (string-contains? i index-a)) (string->list index-b))
+    (error 'tblis-add "incompatible indices" index-a index-b))
+  (do ([i 0 (+ i 1)])
+      ((fx=? i (string-length index-b)))
+    (unless (fx=? (tensor-size a (string-find (string-ref index-b i) index-a))
+                  (tensor-size b i))
+      (error 'tblis-add "incompatible shapes" (tensor-shape a) (tensor-shape b)))))
+
+; void tblis_tensor_add(const tblis_comm* comm, const tblis_config* cfg,
+;                       const tblis_tensor* A, const label_type* idx_A,
+;                       tblis_tensor* B, const label_type* idx_B);
+(define (tblis-add scale-a a index-a scale-b b index-b)
+  (tblis-add-check-args a index-a b index-b)
+  (let ([c-add (foreign-procedure "tblis_tensor_add"
+                 (void* void* (* tblis-tensor) string (* tblis-tensor) string) void)]
+        ; [c-print (foreign-procedure "print_tblis_scalar"
+        ;          ((* tblis-tensor)) void)]
+        )
+    (with-scaled-tblis-tensor a scale-a (lambda (tblis-a)
+      (with-scaled-tblis-tensor b scale-b (lambda (tblis-b)
+        ; (c-print tblis-a)
+        ; (c-print tblis-b)
+        (c-add 0 0 tblis-a index-a tblis-b index-b)
+      )))))
+  b)
+
+(define (tblis-mul scale-a a index-a scale-b b index-b scale-c c index-c)
+  (let ([c-mul (foreign-procedure "tblis_tensor_mul"
+                 (void* void* (* tblis-tensor) string
+                              (* tblis-tensor) string
+                              (* tblis-tensor) string) void)])
+    (with-scaled-tblis-tensor a scale-a (lambda (tblis-a)
+      (with-scaled-tblis-tensor b scale-b (lambda (tblis-b)
+        (with-scaled-tblis-tensor c scale-c  (lambda (tblis-c)
+          (c-mul 0 0 tblis-a index-a tblis-b index-b tblis-c index-c))))))))
+  c)
+
+(define (alphabet-indices ndim)
+  (list->string
+    (let loop ([i 0])
+      (if (fx=? i ndim)
+        '()
+        (cons (integer->char (fx+ (char->integer #\a) i)) (loop (fx+ i 1)))))))
+
+(define (∂ᵢ matrix i t)
+  (let ([∂t (tensor-similar t)]
+        [indices-a "01"]
+        [indices-b (alphabet-indices (tensor-ndim t))]
+        [indices-c (alphabet-indices (tensor-ndim t))])
+    (string-set! indices-b i #\1)
+    (string-set! indices-c i #\0)
+    (tblis-mul 1 matrix indices-a
+               1 t indices-b
+               0 ∂t indices-c)))
+
 ; (define with-halide-double
 ;   (lambda (action)
 ;     (alloca
@@ -426,15 +540,13 @@
 ;           (ftype-set! halide_type_t (lanes) p 1)
 ;           (action p))))))
 (define t (∂-matrix-bounded 0.0 1.0 4))
-(display (tensor-get t 0))
-(newline)
-(tensor-free t)
 
-(do ([i 3 (fx- i 1)])
-    ((fx= i 0))
-  (malloc-Storage 'double-float 10)
-  (collect))
-(free-dropped-Storage)
+
+; (do ([i 3 (fx- i 1)])
+;     ((fx= i 0))
+;   (malloc-Storage 'double-float 10)
+;   (collect))
+; (free-dropped-Storage)
 ; (display (tensor-get t 1))
 ; (newline)
 ; (display (tensor-get t 2))
