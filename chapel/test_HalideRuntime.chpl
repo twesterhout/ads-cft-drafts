@@ -12,4 +12,7 @@ proc main() {
 
   var arr : [0 ..# 3] real;
   var buffer = new HalideBuffer(arr);
+
+  var arr2 : [0 ..# 3, 0 ..# 2] real;
+  var buffer2 = new HalideBuffer(arr2);
 }

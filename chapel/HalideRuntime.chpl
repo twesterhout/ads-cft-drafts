@@ -57,7 +57,7 @@ extern record halide_buffer_t {
   /** flags with various meanings. */
   var flags : uint(64);
   /** The type of each buffer element. */
-  var m_type : halide_type_t;
+  extern "type" var ctype : halide_type_t;
   /** The dimensionality of the buffer. */
   var dimensions : int(32);
   /** The shape of the buffer. Halide does not own this array - you
@@ -100,7 +100,7 @@ record HalideBuffer {
       device_interface=nil,
       host=c_ptrTo(arr[arr.domain.low]):c_ptr(uint(8)),
       flags=0,
-      m_type=toHalideType(eltType),
+      ctype=toHalideType(eltType),
       dimensions=rank,
       dim=nil,
       padding=nil
