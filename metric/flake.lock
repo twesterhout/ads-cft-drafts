@@ -1,0 +1,94 @@
+{
+  "nodes": {
+    "arrayfire": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "dir": "arrayfire",
+        "lastModified": 1659469667,
+        "narHash": "sha256-WIPJfOwOVOOT3FgM67Lh6YihO03q0hDi3myoAINpvHA=",
+        "owner": "twesterhout",
+        "repo": "nix-for-science",
+        "rev": "6baae577dfad05763b51f93edbdd5111014970ab",
+        "type": "github"
+      },
+      "original": {
+        "dir": "arrayfire",
+        "owner": "twesterhout",
+        "repo": "nix-for-science",
+        "type": "github"
+      }
+    },
+    "flake-utils": {
+      "locked": {
+        "lastModified": 1656928814,
+        "narHash": "sha256-RIFfgBuKz6Hp89yRr7+NR5tzIAbn52h8vT6vXkYjZoM=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "7e2a3b3dfd9af950a856d66b0a7d01e3c18aa249",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "flake-utils_2": {
+      "locked": {
+        "lastModified": 1652776076,
+        "narHash": "sha256-gzTw/v1vj4dOVbpBSJX4J0DwUR6LIyXo7/SuuTJp1kM=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "04c1b180862888302ddfb2e3ad9eaa63afc60cf8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1659468123,
+        "narHash": "sha256-VjvGyKnRO/xc9+KmspQl3Ve7cSNoJxVXJVnhLm1HEKU=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "d2c05d420be8798ed9af5d7ecb62b05b2995f791",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1659444051,
+        "narHash": "sha256-CEIjZ69Kn4Sasrwyo7z3vxIFhnQRnr4cxnLSHm5DYgA=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "2a03bd844a74eea2d0bc6a42800932e9e378ec99",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "arrayfire": "arrayfire",
+        "flake-utils": "flake-utils_2",
+        "nixpkgs": "nixpkgs_2"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
