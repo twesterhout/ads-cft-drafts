@@ -7,3 +7,4 @@ source-repository-package
   type: git
   location: https://github.com/twesterhout/arrayfire-haskell.git
   tag: master
+  --sha256: 1lqmjg2zywl7jp6bjxf3khvap6d7khpwm8n4p49syz2bpyxfn4g7
