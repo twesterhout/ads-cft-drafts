@@ -4,11 +4,11 @@
 }:
 mkDerivation {
   pname = "arrayfire";
-  version = "0.6.0.1";
+  version = "0.6.1.0";
   src = fetchgit {
     url = "https://github.com/twesterhout/arrayfire-haskell";
-    hash = "sha256-Z5bi6b2R1rWmTuF8Vv0t83AQeGY0UmrwTAeWFG/Vf9M=";
-    rev = "20d81d1f84f154eecc2c3e4e932a111a973726a1";
+    hash = "sha256-K3AKTzUus1ZyHMZJ/zifIofMRDXFvFtYRLQ9BtyKtjI=";
+    rev = "20d4f02ead2e0788e9053a73214a1c90c1ba3aee";
     fetchSubmodules = true;
   };
   isLibrary = true;
