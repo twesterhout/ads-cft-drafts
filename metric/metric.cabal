@@ -49,6 +49,8 @@ library
   hs-source-dirs:      src
   exposed-modules:     Metric
   build-depends:       arrayfire >= 0.6.0.1
+                     , halide-haskell >= 0.0.1
+  extra-libraries:     Halide
 
 executable metric
   import:              common-options

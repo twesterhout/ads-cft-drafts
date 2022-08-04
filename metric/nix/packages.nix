@@ -19,6 +19,7 @@ let
           directory = ./packages;
         };
         manual = _hfinal: hprev: {
+          Halide = pkgs.halide;
           metric =
             let
               filteredSrc = util.filterSrc ../. {
