@@ -1,0 +1,166 @@
+diff --git a/CMakeModules/AFconfigure_deps_vars.cmake b/CMakeModules/AFconfigure_deps_vars.cmake
+index aac332f5..461c8d2a 100644
+--- a/CMakeModules/AFconfigure_deps_vars.cmake
++++ b/CMakeModules/AFconfigure_deps_vars.cmake
+@@ -5,30 +5,32 @@
+ # The complete license agreement can be obtained at:
+ # http://arrayfire.com/licenses/BSD-3-Clause
+ 
+-file(DOWNLOAD
+-  "https://github.com/arrayfire/arrayfire/blob/v3.0.0/CMakeLists.txt"
+-  "${ArrayFire_BINARY_DIR}/download_copy_cmakelists.stamp"
+-  STATUS af_check_result
+-  TIMEOUT 4
+-)
+-list(GET af_check_result 0 af_is_connected)
+-if(${af_is_connected})
++# file(DOWNLOAD
++#   "https://github.com/arrayfire/arrayfire/blob/v3.0.0/CMakeLists.txt"
++#   "${ArrayFire_BINARY_DIR}/download_copy_cmakelists.stamp"
++#   STATUS af_check_result
++#   TIMEOUT 4
++# )
++# list(GET af_check_result 0 af_is_connected)
++# if(${af_is_connected})
+   set(BUILD_OFFLINE ON)
+   # Turn ON disconnected flag when connected to cloud
+   set(FETCHCONTENT_FULLY_DISCONNECTED ON CACHE BOOL
+       "Disable Download/Update stages of FetchContent workflow" FORCE)
+ 
+   message(STATUS "No cloud connection. Attempting offline build if dependencies are available")
+-else()
+-  set(BUILD_OFFLINE OFF)
+-  # Turn OFF disconnected flag when connected to cloud
+-  # This is required especially in the following scenario:
+-  # - cmake run successfully first
+-  # - lost connection, but development can still be done
+-  # - Now, connection regained. Hence updates should be allowed
+-  set(FETCHCONTENT_FULLY_DISCONNECTED OFF CACHE BOOL
+-      "Disable Download/Update stages of FetchContent workflow" FORCE)
+-endif()
++# else()
++#   set(BUILD_OFFLINE OFF)
++#   # Turn OFF disconnected flag when connected to cloud
++#   # This is required especially in the following scenario:
++#   # - cmake run successfully first
++#   # - lost connection, but development can still be done
++#   # - Now, connection regained. Hence updates should be allowed
++#   set(FETCHCONTENT_FULLY_DISCONNECTED OFF CACHE BOOL
++#       "Disable Download/Update stages of FetchContent workflow" FORCE)
++# 
++#   message(STATUS "Building online again ...")
++# endif()
+ 
+ # Track dependencies download persistently across multiple
+ # cmake configure runs. *_POPULATED variables are reset for each
+@@ -87,62 +89,62 @@ macro(af_dep_check_and_populate dep_prefix)
+ 
+   string(FIND "${adcp_args_REF}" "=" adcp_has_algo_id)
+ 
+-  if(${BUILD_OFFLINE} AND NOT ${AF_INTERNAL_DOWNLOAD_FLAG})
+-    if(NOT ${adcp_has_algo_id} EQUAL -1)
++  # if(${BUILD_OFFLINE} AND NOT ${AF_INTERNAL_DOWNLOAD_FLAG})
++    # if(NOT ${adcp_has_algo_id} EQUAL -1)
+       FetchContent_Populate(${dep_prefix}
+         QUIET
+         URL            ${adcp_args_URI}
+         URL_HASH       ${adcp_args_REF}
+-        DOWNLOAD_COMMAND \"\"
++        DOWNLOAD_COMMAND true
+         UPDATE_DISCONNECTED ON
+         SOURCE_DIR     "${ArrayFire_SOURCE_DIR}/extern/${dep_prefix}-src"
+         BINARY_DIR     "${ArrayFire_BINARY_DIR}/extern/${dep_prefix}-build"
+         SUBBUILD_DIR   "${ArrayFire_BINARY_DIR}/extern/${dep_prefix}-subbuild"
+       )
+-    elseif("${adcp_args_REF}" STREQUAL "")
+-      FetchContent_Populate(${dep_prefix}
+-        QUIET
+-        URL            ${adcp_args_URI}
+-        DOWNLOAD_COMMAND \"\"
+-        UPDATE_DISCONNECTED ON
+-        SOURCE_DIR     "${ArrayFire_SOURCE_DIR}/extern/${dep_prefix}-src"
+-        BINARY_DIR     "${ArrayFire_BINARY_DIR}/extern/${dep_prefix}-build"
+-        SUBBUILD_DIR   "${ArrayFire_BINARY_DIR}/extern/${dep_prefix}-subbuild"
+-      )
+-    else()
++    # elseif("${adcp_args_REF}" STREQUAL "")
++      # FetchContent_Populate(${dep_prefix}
++      #   QUIET
++      #   URL            ${adcp_args_URI}
++      #   DOWNLOAD_COMMAND true
++      #   UPDATE_DISCONNECTED ON
++      #   SOURCE_DIR     "${ArrayFire_SOURCE_DIR}/extern/${dep_prefix}-src"
++      #   BINARY_DIR     "${ArrayFire_BINARY_DIR}/extern/${dep_prefix}-build"
++      #   SUBBUILD_DIR   "${ArrayFire_BINARY_DIR}/extern/${dep_prefix}-subbuild"
++    #   )
++    # else()
+       # The left over alternative is assumed to be a cloud hosted git repository
+-      FetchContent_Populate(${dep_prefix}
+-        QUIET
+-        GIT_REPOSITORY ${adcp_args_URI}
+-        GIT_TAG        ${adcp_args_REF}
+-        DOWNLOAD_COMMAND \"\"
+-        UPDATE_DISCONNECTED ON
+-        SOURCE_DIR     "${ArrayFire_SOURCE_DIR}/extern/${dep_prefix}-src"
+-        BINARY_DIR     "${ArrayFire_BINARY_DIR}/extern/${dep_prefix}-build"
+-        SUBBUILD_DIR   "${ArrayFire_BINARY_DIR}/extern/${dep_prefix}-subbuild"
+-      )
+-    endif()
+-  else()
+-    if(NOT ${adcp_has_algo_id} EQUAL -1)
+-      FetchContent_Declare(${dep_prefix}
+-        URL            ${adcp_args_URI}
+-        URL_HASH       ${adcp_args_REF}
+-      )
+-    elseif("${adcp_args_REF}" STREQUAL "")
+-      FetchContent_Declare(${dep_prefix}
+-        URL            ${adcp_args_URI}
+-      )
+-    else()
+-      # The left over alternative is assumed to be a cloud hosted git repository
+-      FetchContent_Declare(${dep_prefix}
+-        GIT_REPOSITORY ${adcp_args_URI}
+-        GIT_TAG        ${adcp_args_REF}
+-      )
+-    endif()
+-    FetchContent_GetProperties(${dep_prefix})
+-    if(NOT ${dep_prefix}_POPULATED)
+-      FetchContent_Populate(${dep_prefix})
+-    endif()
+-    set(AF_INTERNAL_DOWNLOAD_FLAG ON CACHE BOOL "Deps Download Flag" FORCE)
+-  endif()
++      # FetchContent_Populate(${dep_prefix}
++      #   QUIET
++      #   GIT_REPOSITORY ${adcp_args_URI}
++      #   GIT_TAG        ${adcp_args_REF}
++      #   DOWNLOAD_COMMAND true
++      #   UPDATE_DISCONNECTED ON
++      #   SOURCE_DIR     "${ArrayFire_SOURCE_DIR}/extern/${dep_prefix}-src"
++      #   BINARY_DIR     "${ArrayFire_BINARY_DIR}/extern/${dep_prefix}-build"
++      #   SUBBUILD_DIR   "${ArrayFire_BINARY_DIR}/extern/${dep_prefix}-subbuild"
++      # )
++    # endif()
++  # else()
++  #   if(NOT ${adcp_has_algo_id} EQUAL -1)
++  #     FetchContent_Declare(${dep_prefix}
++  #       URL            ${adcp_args_URI}
++  #       URL_HASH       ${adcp_args_REF}
++  #     )
++  #   elseif("${adcp_args_REF}" STREQUAL "")
++  #     FetchContent_Declare(${dep_prefix}
++  #       URL            ${adcp_args_URI}
++  #     )
++  #   else()
++  #     # The left over alternative is assumed to be a cloud hosted git repository
++  #     FetchContent_Declare(${dep_prefix}
++  #       GIT_REPOSITORY ${adcp_args_URI}
++  #       GIT_TAG        ${adcp_args_REF}
++  #     )
++  #   endif()
++  #   FetchContent_GetProperties(${dep_prefix})
++  #   if(NOT ${dep_prefix}_POPULATED)
++  #     FetchContent_Populate(${dep_prefix})
++  #   endif()
++  #   set(AF_INTERNAL_DOWNLOAD_FLAG ON CACHE BOOL "Deps Download Flag" FORCE)
++  # endif()
+ endmacro()

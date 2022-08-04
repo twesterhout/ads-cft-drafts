@@ -1,10 +1,19 @@
-packages: .
+packages: *.cabal
 
-package arrayfire
-  flags: +disable-default-paths
-  
-source-repository-package
-  type: git
-  location: https://github.com/twesterhout/arrayfire-haskell.git
-  tag: 44927d93e70d58a6fd2516a900796ad0a896a501
-  --sha256: 1lqmjg2zywl7jp6bjxf3khvap6d7khpwm8n4p49syz2bpyxfn4g7
+-- stan needs the .hie files to run its analysis
+-- package *
+--   ghc-options: -fwrite-ide-info
+--                -hiedir=.hie
+
+-- tell ghc to write the package environment file
+write-ghc-environment-files: always
+
+-- Define -O0 by default so that all dev processes are faster.
+-- This also affects HLS which will pick up on this (otherwise it'll use -O1)
+-- CI Nix builds are unaffected by this and will use the default -O1
+optimization: False
+
+-- Nix handles dependencies. 
+-- It is generally a bug if cabal has to download anything
+-- In other words ~/.cabal should be empty (modulo some meta files)
+active-repositories: none

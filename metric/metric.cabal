@@ -1,19 +1,19 @@
-cabal-version:       2.4
+cabal-version:       3.0
 name:                metric
-version:             0.0.0.0
+version:             0.0.1.0
 synopsis:            See README for more info
 description:         See README for more info
 homepage:            https://github.com/twesterhout/metric
 bug-reports:         https://github.com/twesterhout/metric/issues
 license:             BSD-3-Clause
--- license-file:        LICENSE
+license-file:        LICENSE
 author:              Tom Westerhout
 maintainer:          Tom Westerhout <14264576+twesterhout@users.noreply.github.com>
 copyright:           2022 Tom Westerhout
 build-type:          Simple
 extra-doc-files:     README.md
                      CHANGELOG.md
-tested-with:         GHC == 8.8.3
+tested-with:         GHC == 9.0.2
 
 source-repository head
   type:                git
