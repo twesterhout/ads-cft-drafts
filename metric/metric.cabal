@@ -48,7 +48,7 @@ library
   import:              common-options
   hs-source-dirs:      src
   exposed-modules:     Metric
-  build-depends:       arrayfire
+  build-depends:       arrayfire >= 0.6.0.1
 
 executable metric
   import:              common-options
@@ -59,23 +59,23 @@ executable metric
                        -rtsopts
                        -with-rtsopts=-N
 
-test-suite metric-test
-  import:              common-options
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
-  main-is:             Spec.hs
-  build-depends:       metric
-  ghc-options:         -threaded
-                       -rtsopts
-                       -with-rtsopts=-N
+-- test-suite metric-test
+--   import:              common-options
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      test
+--   main-is:             Spec.hs
+--   build-depends:       metric
+--   ghc-options:         -threaded
+--                        -rtsopts
+--                        -with-rtsopts=-N
 
-benchmark metric-benchmark
-  import:              common-options
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      benchmark
-  main-is:             Main.hs
-  build-depends:       gauge
-                     , metric
-  ghc-options:         -threaded
-                       -rtsopts
-                       -with-rtsopts=-N
+-- benchmark metric-benchmark
+--   import:              common-options
+--   type:                exitcode-stdio-1.0
+--   hs-source-dirs:      benchmark
+--   main-is:             Main.hs
+--   build-depends:       gauge
+--                      , metric
+--   ghc-options:         -threaded
+--                        -rtsopts
+--                        -with-rtsopts=-N
