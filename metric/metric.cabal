@@ -51,7 +51,7 @@ library
   exposed-modules:     Metric
   build-depends:       arrayfire >= 0.6.0.1
                      , halide-haskell >= 0.0.1
-  extra-libraries:     Halide
+  extra-libraries:     ads_cft_kernels
 
 executable metric
   import:              common-options

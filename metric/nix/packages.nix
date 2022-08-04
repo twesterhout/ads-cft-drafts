@@ -19,7 +19,6 @@ let
           directory = ./packages;
         };
         manual = _hfinal: hprev: {
-          Halide = pkgs.halide;
           metric =
             let
               filteredSrc = util.filterSrc ../. {
@@ -27,7 +26,9 @@ let
                 ignorePaths = conf.ignore.paths;
               };
             in
-            hprev.callCabal2nix "metric" filteredSrc { };
+            hprev.callCabal2nix "metric" filteredSrc {
+              ads_cft_kernels = pkgs.ads-cft-kernels;
+            };
         };
       in
       lib.composeExtensions depsFromDir manual;

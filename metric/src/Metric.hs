@@ -1,3 +1,4 @@
+{-# LANGUAGE CApiFFI #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 -- |
@@ -20,10 +21,44 @@ where
 
 import ArrayFire (AFType, Array, scalar)
 import qualified ArrayFire as AF
+import Foreign.C.Types (CInt (..))
+import Foreign.Ptr (Ptr)
+import Language.Halide
 
 someFunc :: IO ()
 someFunc = do
   putStrLn ("someFunc" :: String)
+
+foreign import ccall unsafe "kernels_metric.h ads_cft_halide_compute_metric"
+  c_compute_metric ::
+    -- | x
+    Ptr HalideBuffer ->
+    -- | y
+    Ptr HalideBuffer ->
+    -- | z
+    Ptr HalideBuffer ->
+    -- | Q
+    Ptr HalideBuffer ->
+    -- | ∂Q
+    Ptr HalideBuffer ->
+    -- | ∂∂Q
+    Ptr HalideBuffer ->
+    -- | length
+    Double ->
+    -- | μ
+    Double ->
+    -- | g₁₂
+    Ptr HalideBuffer ->
+    -- | g¹²
+    Ptr HalideBuffer ->
+    IO CInt
+
+withArrayOfShape :: (HasCallStack, AFType a) => Array a -> [Int] -> (Ptr HalideBuffer -> IO b) -> IO b
+withArrayOfShape arr shape action
+  | d₀ * d₁ * d₂ * d₃ == product shape = undefined
+  | otherwise = error $ "cannot reshape Array of size " <> show currentShape <> " into " <> show shape
+  where
+    currentShape@(d₀, d₁, d₂, d₃) = AF.getDims arr
 
 gridPointsForPeriodic :: Double -> Int -> Array Double
 gridPointsForPeriodic period n
