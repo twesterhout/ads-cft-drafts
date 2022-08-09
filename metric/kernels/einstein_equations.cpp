@@ -21,73 +21,515 @@ auto operator+(double a, Expr b) -> Expr { return to_float_checked(a) + b; }
 auto operator-(double a, Expr b) -> Expr { return to_float_checked(a) - b; }
 
 template <class... Batch>
-auto make_g_dd(Func z, Func Q, Expr L, Expr mu, Batch... i) -> Func {
+auto make_g_dd(bool auto_schedule, Func z, Func Q, Expr L, Expr mu, Batch... i)
+    -> Func {
   Var _mu{"mu"}, _nu{"nu"};
   Func output{"g_dd"};
   output(i..., _mu, _nu) = cast<double>(0);
   FROM_EXPRESSIONS_g_dd(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
   return output;
 }
 
 template <class... Batch>
-auto make_g_UU(Func z, Func Q, Expr L, Expr mu, Batch... i) -> Func {
+auto make_g_UU(bool auto_schedule, Func z, Func Q, Expr L, Expr mu, Batch... i)
+    -> Func {
   Var _mu{"mu"}, _nu{"nu"};
   Func output{"g_UU"};
   output(i..., _mu, _nu) = cast<double>(0);
   FROM_EXPRESSIONS_g_UU(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+template <class... Batch>
+auto make_Dg_ddd(bool auto_schedule, Func z, Func Q, Func DQ, Expr L, Expr mu,
+                 Batch... i) -> Func {
+  Var _lambda{"lambda"}, _mu{"mu"}, _nu{"nu"};
+  Func output{"Dg_ddd"};
+  output(i..., _lambda, _mu, _nu) = cast<double>(0);
+  FROM_EXPRESSIONS_Dg_ddd(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+template <class... Batch>
+auto make_Dg_dUU(bool auto_schedule, Func z, Func Q, Func DQ, Expr L, Expr mu,
+                 Batch... i) -> Func {
+  Var _lambda{"lambda"}, _mu{"mu"}, _nu{"nu"};
+  Func output{"Dg_dUU"};
+  output(i..., _lambda, _mu, _nu) = cast<double>(0);
+  FROM_EXPRESSIONS_Dg_dUU(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+template <class... Batch>
+auto make_DDg_dddd(bool auto_schedule, Func z, Func Q, Func DQ, Func DDQ,
+                   Expr L, Expr mu, Batch... i) -> Func {
+  Var _kappa{"kappa"}, _lambda{"lambda"}, _mu{"mu"}, _nu{"nu"};
+  Func output{"DDg_dddd"};
+  output(i..., _kappa, _lambda, _mu, _nu) = cast<double>(0);
+  FROM_EXPRESSIONS_DDg_dddd(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
   return output;
 }
 
 class metric_generator : public Halide::Generator<metric_generator> {
 public:
+  Input<double> _length{"length"};
+  Input<double> _chemical_potential{"chemical_potential"};
   Input<Buffer<double>> _x{"x", 1};
   Input<Buffer<double>> _y{"y", 1};
   Input<Buffer<double>> _z{"z", 1};
-  Input<Buffer<double>> _Q{"Q", 4};
-  Input<Buffer<double>> _DQ{"DQ", 5};
-  Input<Buffer<double>> _DDQ{"DDQ", 6};
-  Input<double> _length{"length"};
-  Input<double> _chemical_potential{"chemical_potential"};
+  Input<Buffer<double>> _Q{"Q", 2};
+  Input<Buffer<double>> _DQ{"DQ", 3};
+  Input<Buffer<double>> _DDQ{"DDQ", 4};
 
-  Output<Buffer<double>> _out_g_dd{"g_dd", 5};
-  Output<Buffer<double>> _out_g_UU{"g_UU", 5};
+  Output<Buffer<double>> _out_g_dd{"g_dd", 3};
+  Output<Buffer<double>> _out_g_UU{"g_UU", 3};
+  Output<Buffer<double>> _out_Dg_ddd{"Dg_ddd", 4};
+  Output<Buffer<double>> _out_Dg_dUU{"Dg_dUU", 4};
+  Output<Buffer<double>> _out_DDg_dddd{"DDg_dddd", 5};
 
   auto generate() -> void {
-    Var i_x{"i_x"}, i_y{"i_y"}, i_z{"i_z"};
-    Var mu{"mu"}, nu{"nu"};
+    Var i{"i"};
 
-    Func z;
-    z(i_x, i_y, i_z) = _z(i_z);
-
-    auto g_dd = make_g_dd(z, _Q, _length, _chemical_potential, i_x, i_y, i_z);
-    auto g_UU = make_g_UU(z, _Q, _length, _chemical_potential, i_x, i_y, i_z);
-
-    _out_g_dd(i_x, i_y, i_z, mu, nu) = g_dd(i_x, i_y, i_z, mu, nu);
-    _out_g_UU(i_x, i_y, i_z, mu, nu) = g_UU(i_x, i_y, i_z, mu, nu);
+    _out_g_dd =
+        make_g_dd(auto_schedule, _z, _Q, _length, _chemical_potential, i);
+    _out_g_UU =
+        make_g_UU(auto_schedule, _z, _Q, _length, _chemical_potential, i);
+    _out_Dg_ddd = make_Dg_ddd(auto_schedule, _z, _Q, _DQ, _length,
+                              _chemical_potential, i);
+    _out_Dg_dUU = make_Dg_dUU(auto_schedule, _z, _Q, _DQ, _length,
+                              _chemical_potential, i);
+    _out_DDg_dddd = make_DDg_dddd(auto_schedule, _z, _Q, _DQ, _DDQ, _length,
+                                  _chemical_potential, i);
   }
 };
 
 HALIDE_REGISTER_GENERATOR(metric_generator, metric_generator)
 
-#if 0
 template <class... Batch>
-auto make_Dg_ddd(Func z, Func Q, Func DQ, Expr L, Expr mu, Batch... i) -> Func {
-  Var _lambda{"lambda"}, _mu{"mu"}, _nu{"nu"};
-  Func output{"Dg_ddd"};
-  output(i..., _lambda, _mu, _nu) = cast<double>(0);
-  FROM_EXPRESSIONS_Dg_ddd(output);
+auto make_F_dd(bool auto_schedule, Func z, Func Q, Func DQ, Batch... i)
+    -> Func {
+  Var _mu{"mu"}, _nu{"nu"};
+  Func output{"F_dd"};
+  output(i..., _mu, _nu) = cast<double>(0);
+  FROM_EXPRESSIONS_F_dd(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
   return output;
 }
 
 template <class... Batch>
-auto make_DDg_dddd(Func z, Func Q, Func DQ, Func DDQ, Expr L, Expr mu,
-                   Batch... i) -> Func {
-  Var _kappa{"kappa"}, _lambda{"lambda"}, _mu{"mu"}, _nu{"nu"};
-  Func output{"DDg_dddd"};
-  output(i..., _kappa, _lambda, _mu, _nu) = cast<double>(0);
-  FROM_EXPRESSIONS_DDg_dddd(output);
+auto make_DF_ddd(bool auto_schedule, Func z, Func Q, Func DQ, Func DDQ,
+                 Batch... i) -> Func {
+  Var mu{"mu"}, nu{"nu"}, rho{"rho"};
+  Func output{"DF_ddd"};
+  output(i..., mu, nu, rho) = cast<double>(0);
+  FROM_EXPRESSIONS_DF_ddd(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
   return output;
 }
+
+auto make_F_Ud(bool auto_schedule, Func F_dd, Func g_UU) -> Func {
+  Var mu{"mu"}, nu{"nu"};
+  RDom rho{0, 4, "rho"};
+  Func output{"F_Ud"};
+  output(_, mu, nu) = sum(g_UU(_, mu, rho) * F_dd(_, rho, nu));
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+auto make_F_UU(bool auto_schedule, Func F_Ud, Func g_UU) -> Func {
+  Var mu{"mu"}, nu{"nu"};
+  RDom rho{0, 4, "rho"};
+  Func output{"F_UU"};
+  output(_, mu, nu) = sum(F_Ud(_, mu, rho) * g_UU(_, rho, nu));
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+auto make_DF_dUd(bool auto_schedule, Func F_dd, Func DF_ddd, Func g_UU,
+                 Func Dg_dUU) -> Func {
+  Var mu{"mu"}, nu{"nu"}, rho{"rho"};
+  RDom lambda{0, 4, "lambda"};
+  Func output{"DF_dUd"};
+  output(_, rho, mu, nu) =
+      sum(Dg_dUU(_, rho, mu, lambda) * F_dd(_, lambda, nu) +
+          g_UU(_, mu, lambda) * DF_ddd(_, rho, lambda, nu));
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+auto make_DivF_d(bool auto_schedule, Func F_Ud, Func DF_dUd, Func Gamma_Udd)
+    -> Func {
+  Var nu{"nu"};
+  RDom lambda{0, 4, "lambda"}, mu{0, 4, "rho"};
+  Func output;
+  output(_, nu) = sum(
+      mu, DF_dUd(_, mu, mu, nu) +
+              sum(lambda, Gamma_Udd(_, mu, mu, lambda) * F_Ud(_, lambda, nu)) -
+              sum(lambda, Gamma_Udd(_, lambda, mu, nu) * F_Ud(_, mu, lambda)));
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+class maxwell_generator : public Halide::Generator<maxwell_generator> {
+public:
+  Input<Buffer<double>> _x{"x", 1};
+  Input<Buffer<double>> _y{"y", 1};
+  Input<Buffer<double>> _z{"z", 1};
+  Input<Buffer<double>> _Q{"Q", 2};
+  Input<Buffer<double>> _DQ{"DQ", 3};
+  Input<Buffer<double>> _DDQ{"DDQ", 4};
+  Input<Buffer<double>> _g_UU{"g_UU", 3};
+  Input<Buffer<double>> _Dg_ddd{"Dg_ddd", 4};
+  Input<Buffer<double>> _Dg_dUU{"Dg_dUU", 4};
+  Input<Buffer<double>> _Gamma_Udd{"Gamma_Udd", 4};
+
+  Output<Buffer<double>> _out_F_dd{"F_dd", 3};
+  Output<Buffer<double>> _out_F_Ud{"F_Ud", 3};
+  Output<Buffer<double>> _out_F_UU{"F_UU", 3};
+  Output<Buffer<double>> _out_DivF_d{"DivF_d", 2};
+
+  auto generate() -> void {
+    Var i{"i"};
+
+    _out_F_dd = make_F_dd(auto_schedule, _z, _Q, _DQ, i);
+    _out_F_Ud = make_F_Ud(auto_schedule, _out_F_dd, _g_UU);
+    _out_F_UU = make_F_UU(auto_schedule, _out_F_Ud, _g_UU);
+    auto DF_ddd = make_DF_ddd(auto_schedule, _z, _Q, _DQ, _DDQ, i);
+    auto DF_dUd = make_DF_dUd(auto_schedule, _out_F_dd, DF_ddd, _g_UU, _Dg_dUU);
+    _out_DivF_d = make_DivF_d(auto_schedule, _out_F_Ud, DF_dUd, _Gamma_Udd);
+  }
+};
+
+HALIDE_REGISTER_GENERATOR(maxwell_generator, maxwell_generator)
+
+auto make_Gamma_Udd(bool auto_schedule, Func g_UU, Func Dg_ddd) -> Func {
+  Var mu{"mu"}, nu{"nu"}, lambda{"lambda"};
+  RDom rho{0, 4, "rho"};
+
+  Func Gamma_Udd;
+  Gamma_Udd(_, lambda, mu, nu) =
+      0.5f * sum(g_UU(_, lambda, rho) *
+                 (Dg_ddd(_, mu, nu, rho) + Dg_ddd(_, nu, mu, rho) -
+                  Dg_ddd(_, rho, mu, nu)));
+  if (!auto_schedule) {
+    Gamma_Udd.compute_root();
+  }
+  return Gamma_Udd;
+}
+
+auto make_DGamma_dUdd(bool auto_schedule, Func g_UU, Func Dg_dUU, Func Dg_ddd,
+                      Func DDg_dddd) -> Func {
+  Var mu{"mu"}, nu{"nu"}, lambda{"lambda"}, kappa{"kappa"};
+  RDom rho{0, 4, "rho"};
+
+  Func DGamma_dUdd;
+  DGamma_dUdd(_, kappa, lambda, mu, nu) =
+      0.5f * sum(Dg_dUU(_, kappa, lambda, rho) *
+                     (Dg_ddd(_, mu, nu, rho) + Dg_ddd(_, nu, mu, rho) -
+                      Dg_ddd(_, rho, mu, nu)) +
+                 g_UU(_, lambda, rho) * (DDg_dddd(_, kappa, mu, nu, rho) +
+                                         DDg_dddd(_, kappa, nu, mu, rho) -
+                                         DDg_dddd(_, kappa, rho, mu, nu)));
+  if (!auto_schedule) {
+    DGamma_dUdd.compute_root();
+  }
+  return DGamma_dUdd;
+}
+
+class christoffel_generator : public Halide::Generator<christoffel_generator> {
+public:
+  Input<Buffer<double>> _g_UU{"g_UU", 3};
+  Input<Buffer<double>> _Dg_ddd{"Dg_ddd", 4};
+  Input<Buffer<double>> _Dg_dUU{"Dg_dUU", 4};
+  Input<Buffer<double>> _DDg_dddd{"DDg_dddd", 5};
+
+  Output<Buffer<double>> _out_Gamma_Udd{"Gamma_Udd", 4};
+  Output<Buffer<double>> _out_DGamma_dUdd{"DGamma_dUdd", 5};
+
+  auto generate() -> void {
+    _out_Gamma_Udd = make_Gamma_Udd(auto_schedule, _g_UU, _Dg_ddd);
+    _out_DGamma_dUdd =
+        make_DGamma_dUdd(auto_schedule, _g_UU, _Dg_dUU, _Dg_ddd, _DDg_dddd);
+  }
+};
+
+HALIDE_REGISTER_GENERATOR(christoffel_generator, christoffel_generator)
+
+auto make_R_Uddd(bool auto_schedule, Func Gamma_Udd, Func DGamma_dUdd) -> Func {
+  Var mu{"mu"}, nu{"nu"}, rho{"rho"}, sigma{"sigma"};
+  RDom lambda{0, 4, "lambda"};
+  Func output;
+  Func temp;
+  temp(_, nu, rho, sigma, mu) =
+      sum(Gamma_Udd(_, lambda, nu, rho) * Gamma_Udd(_, sigma, mu, lambda));
+  output(_, sigma, rho, mu, nu) =
+      DGamma_dUdd(_, mu, sigma, nu, rho) - DGamma_dUdd(_, nu, sigma, mu, rho) +
+      temp(_, nu, rho, sigma, mu) - temp(_, mu, rho, sigma, nu);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+auto make_R_dd(bool auto_schedule, Func R_Uddd) -> Func {
+  Var mu{"mu"}, nu{"nu"};
+  RDom rho{0, 4, "rho"};
+  Func output;
+  output(_, mu, nu) = sum(R_Uddd(_, rho, mu, rho, nu));
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+template <class... Batch>
+auto make_DPhi_d(bool auto_schedule, Func z, Func Q, Func DQ, Batch... i)
+    -> Func {
+  Var mu{"mu"};
+  Func output{"DPhi_d"};
+  output(i..., mu) = cast<double>(0);
+  FROM_EXPRESSIONS_DPhi_d(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+template <class... Batch>
+auto make_DDPhi_dd(bool auto_schedule, Func z, Func Q, Func DQ, Func DDQ,
+                   Batch... i) -> Func {
+  Var mu{"mu"}, nu{"nu"};
+  Func output{"DDPhi_dd"};
+  output(i..., mu, nu) = cast<double>(0);
+  FROM_EXPRESSIONS_DDPhi_dd(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+template <class... Batch>
+auto make_DChi_d(bool auto_schedule, Func z, Func Q, Func DQ, Batch... i)
+    -> Func {
+  Var mu{"mu"};
+  Func output{"DChi_d"};
+  output(i..., mu) = cast<double>(0);
+  FROM_EXPRESSIONS_DChi_d(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+template <class... Batch>
+auto make_DDChi_dd(bool auto_schedule, Func z, Func Q, Func DQ, Func DDQ,
+                   Batch... i) -> Func {
+  Var mu{"mu"}, nu{"nu"};
+  Func output{"DDChi_dd"};
+  output(i..., mu, nu) = cast<double>(0);
+  FROM_EXPRESSIONS_DDChi_dd(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+template <class... Batch>
+auto make_V(bool auto_schedule, Func z, Func Q, Expr L, Batch... i) -> Func {
+  Func output;
+  FROM_EXPRESSIONS_V(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+template <class... Batch>
+auto make_DV_Phi(bool auto_schedule, Func z, Func Q, Expr L, Batch... i)
+    -> Func {
+  Func output;
+  FROM_EXPRESSIONS_DV_Phi(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+template <class... Batch>
+auto make_DV_Chi(bool auto_schedule, Func z, Func Q, Expr L, Batch... i)
+    -> Func {
+  Func output;
+  FROM_EXPRESSIONS_DV_Chi(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+auto make_wave_equation(Func Df_d, Func DDf_dd, Func g_UU, Func Dg_dUU,
+                        Func Gamma_Udd, Func DV_f) -> Func {
+  RDom lambda{0, 4, "lambda"}, mu{0, 4, "mu"}, rho{0, 4, "rho"};
+  Func output;
+  output(_) =
+      sum(rho,
+          sum(mu, Dg_dUU(_, rho, rho, mu) * Df_d(_, mu) +
+                      g_UU(_, rho, mu) * DDf_dd(_, rho, mu) +
+                      sum(lambda, Gamma_Udd(_, rho, rho, lambda) *
+                                      g_UU(_, lambda, mu) * Df_d(_, mu)))) -
+      DV_f(_);
+  return output;
+}
+
+auto make_G_dd(bool auto_schedule, Func R_dd, Func DPhi_d, Func DChi_d,
+               Func F_dd, Func F_Ud, Func F_UU, Func g_dd, Func V, Expr L)
+    -> Func {
+  Var mu{"mu"}, nu{"nu"};
+  RDom lambda{0, 4, "lambda"}, rho{0, 4, "rho"};
+  Func output{"G_dd"};
+  output(_, mu, nu) =
+      R_dd(_, mu, nu) + (3 / (L * L) + V(_)) * g_dd(_, mu, nu) -
+      (DPhi_d(_, mu) * DPhi_d(_, nu) + DChi_d(_, mu) * DChi_d(_, nu)) -
+      (sum(lambda, -F_dd(_, mu, lambda) * F_Ud(_, lambda, nu)) -
+       g_dd(_, mu, nu) / 4 *
+           sum(lambda, sum(rho, F_dd(_, lambda, rho) * F_UU(_, lambda, rho))));
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+class equations_generator : public Halide::Generator<equations_generator> {
+public:
+  Input<double> _length{"length"};
+  Input<Buffer<double>> _x{"x", 1};
+  Input<Buffer<double>> _y{"y", 1};
+  Input<Buffer<double>> _z{"z", 1};
+  Input<Buffer<double>> _Q{"Q", 2};
+  Input<Buffer<double>> _DQ{"DQ", 3};
+  Input<Buffer<double>> _DDQ{"DDQ", 4};
+  Input<Buffer<double>> _g_dd{"g_dd", 3};
+  Input<Buffer<double>> _g_UU{"g_UU", 3};
+  Input<Buffer<double>> _Dg_dUU{"Dg_dUU", 4};
+  Input<Buffer<double>> _Gamma_Udd{"Gamma_Udd", 4};
+  Input<Buffer<double>> _DGamma_dUdd{"DGamma_dUdd", 5};
+  Input<Buffer<double>> _F_dd{"F_dd", 3};
+  Input<Buffer<double>> _F_Ud{"F_Ud", 3};
+  Input<Buffer<double>> _F_UU{"F_UU", 3};
+  Input<Buffer<double>> _divF_d{"divF_d", 2};
+
+  Output<Buffer<double>> _out_equations{"equations", 2};
+
+  void generate() {
+    Var i{"i"}, j{"j"};
+
+    auto R_Uddd = make_R_Uddd(auto_schedule, _Gamma_Udd, _DGamma_dUdd);
+    auto R_dd = make_R_dd(auto_schedule, R_Uddd);
+
+    auto DPhi_d = make_DPhi_d(auto_schedule, _z, _Q, _DQ, i);
+    auto DDPhi_dd = make_DDPhi_dd(auto_schedule, _z, _Q, _DQ, _DDQ, i);
+    auto DChi_d = make_DChi_d(auto_schedule, _z, _Q, _DQ, i);
+    auto DDChi_dd = make_DDChi_dd(auto_schedule, _z, _Q, _DQ, _DDQ, i);
+    auto V = make_V(auto_schedule, _z, _Q, _length, i);
+
+    auto G_dd = make_G_dd(auto_schedule, R_dd, DPhi_d, DChi_d, _F_dd, _F_Ud,
+                          _F_UU, _g_dd, V, _length);
+
+    _out_equations(i, j) = cast<double>(0);
+    _out_equations(i, 0) = G_dd(i, 0, 0);
+    _out_equations(i, 1) = G_dd(i, 1, 1);
+    _out_equations(i, 2) = G_dd(i, 2, 2);
+    _out_equations(i, 3) = G_dd(i, 3, 3);
+    _out_equations(i, 4) = G_dd(i, 1, 3);
+    _out_equations(i, 5) = _divF_d(i, 0);
+    _out_equations(i, 6) =
+        make_wave_equation(DPhi_d, DDPhi_dd, _g_UU, _Dg_dUU, _Gamma_Udd,
+                           make_DV_Phi(auto_schedule, _z, _Q, _length, i))(i);
+    _out_equations(i, 7) =
+        make_wave_equation(DChi_d, DDChi_dd, _g_UU, _Dg_dUU, _Gamma_Udd,
+                           make_DV_Chi(auto_schedule, _z, _Q, _length, i))(i);
+  }
+};
+
+HALIDE_REGISTER_GENERATOR(equations_generator, equations_generator)
+
+template <class... Batch>
+auto make_horizon(bool auto_schedule, Func Q, Func DQ, Func DDQ, Expr L,
+                  Expr mu, Batch... i) -> Func {
+  Var j{"j"};
+  Func output{"horizon"};
+  output(i..., j) = cast<double>(0);
+  FROM_EXPRESSIONS_Horizon(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+class horizon_boundary_generator
+    : public Halide::Generator<horizon_boundary_generator> {
+public:
+  Input<double> _length{"length"};
+  Input<double> _chemical_potential{"chemical_potential"};
+  Input<Buffer<double>> _x{"x", 1};
+  Input<Buffer<double>> _y{"y", 1};
+  Input<Buffer<double>> _Q{"Q", 2};
+  Input<Buffer<double>> _DQ{"DQ", 3};
+  Input<Buffer<double>> _DDQ{"DDQ", 4};
+
+  Output<Buffer<double>> _out_horizon{"horizon", 2};
+
+  void generate() {
+    Var i{"i"};
+
+    _out_horizon = make_horizon(auto_schedule, _Q, _DQ, _DDQ, _length,
+                                _chemical_potential, i);
+  }
+};
+
+HALIDE_REGISTER_GENERATOR(horizon_boundary_generator,
+                          horizon_boundary_generator)
+
+class foo_generator : public Halide::Generator<foo_generator> {
+public:
+  Output<Buffer<double>> _out{"out", 2};
+
+  auto generate() -> void {
+    Var i{"i"}, j{"j"};
+
+    _out(i, j) = cast<double>(i);
+  }
+};
+
+HALIDE_REGISTER_GENERATOR(foo_generator, foo_generator)
+
+#if 0
 
 template <class... Batch>
 auto make_Gamma_Udd_ref(Func z, Func Q, Func DQ, Expr L, Expr mu, Batch... i)
@@ -106,15 +548,6 @@ auto make_DGamma_dUdd_ref(Func z, Func Q, Func DQ, Func DDQ, Expr L, Expr mu,
   Func output{"DGamma_dUdd_ref"};
   output(i..., _lambda, _rho, _mu, _nu) = cast<double>(0);
   FROM_EXPRESSIONS_DGamma_dUdd_ref(output);
-  return output;
-}
-
-template <class... Batch>
-auto make_Dg_dUU(Func z, Func Q, Func DQ, Expr L, Expr mu, Batch... i) -> Func {
-  Var _lambda{"lambda"}, _mu{"mu"}, _nu{"nu"};
-  Func output{"Dg_dUU"};
-  output(i..., _lambda, _mu, _nu) = cast<double>(0);
-  FROM_EXPRESSIONS_Dg_dUU(output);
   return output;
 }
 
@@ -205,166 +638,6 @@ auto make_DivXi_dd(Func Xi_d, Func DXi_dd, Func Gamma_Udd) -> Func {
   return output;
 }
 
-auto make_R_Uddd(Func Gamma_Udd, Func DGamma_dUdd) -> Func {
-  Var mu{"mu"}, nu{"nu"}, rho{"rho"}, sigma{"sigma"};
-  RDom lambda{0, 4, "lambda"};
-  Func output;
-  Func temp;
-  temp(_, nu, rho, sigma, mu) =
-      sum(Gamma_Udd(_, lambda, nu, rho) * Gamma_Udd(_, sigma, mu, lambda));
-  output(_, sigma, rho, mu, nu) =
-      DGamma_dUdd(_, mu, sigma, nu, rho) - DGamma_dUdd(_, nu, sigma, mu, rho) +
-      temp(_, nu, rho, sigma, mu) - temp(_, mu, rho, sigma, nu);
-  return output;
-}
-
-auto make_R_dd(Func R_Uddd) -> Func {
-  Var mu{"mu"}, nu{"nu"};
-  RDom rho{0, 4, "rho"};
-  Func output;
-  output(_, mu, nu) = sum(R_Uddd(_, rho, mu, rho, nu));
-  return output;
-}
-
-template <class... Batch>
-auto make_F_dd(Func z, Func Q, Func DQ, Batch... i) -> Func {
-  Var _mu{"mu"}, _nu{"nu"};
-  Func output{"F_dd"};
-  output(i..., _mu, _nu) = cast<double>(0);
-  FROM_EXPRESSIONS_F_dd(output);
-  return output;
-}
-
-template <class... Batch>
-auto make_DF_ddd(Func z, Func Q, Func DQ, Func DDQ, Batch... i) -> Func {
-  Var mu{"mu"}, nu{"nu"}, rho{"rho"};
-  Func output{"DF_ddd"};
-  output(i..., mu, nu, rho) = cast<double>(0);
-  FROM_EXPRESSIONS_DF_ddd(output);
-  return output;
-}
-
-auto make_F_Ud(Func F_dd, Func g_UU) -> Func {
-  Var mu{"mu"}, nu{"nu"};
-  RDom rho{0, 4, "rho"};
-  Func output{"F_Ud"};
-  output(_, mu, nu) = sum(g_UU(_, mu, rho) * F_dd(_, rho, nu));
-  return output;
-}
-
-auto make_F_UU(Func F_Ud, Func g_UU) -> Func {
-  Var mu{"mu"}, nu{"nu"};
-  RDom rho{0, 4, "rho"};
-  Func output{"F_UU"};
-  output(_, mu, nu) = sum(F_Ud(_, mu, rho) * g_UU(_, rho, nu));
-  return output;
-}
-
-auto make_DF_dUd(Func F_dd, Func DF_ddd, Func g_UU, Func Dg_dUU) -> Func {
-  Var mu{"mu"}, nu{"nu"}, rho{"rho"};
-  RDom lambda{0, 4, "lambda"};
-  Func output{"DF_dUd"};
-  output(_, rho, mu, nu) =
-      sum(Dg_dUU(_, rho, mu, lambda) * F_dd(_, lambda, nu) +
-          g_UU(_, mu, lambda) * DF_ddd(_, rho, lambda, nu));
-  return output;
-}
-
-auto make_DivF_d(Func F_Ud, Func DF_dUd, Func Gamma_Udd) -> Func {
-  Var nu{"nu"};
-  RDom lambda{0, 4, "lambda"}, mu{0, 4, "rho"};
-  Func output;
-  output(_, nu) = sum(
-      mu, DF_dUd(_, mu, mu, nu) +
-              sum(lambda, Gamma_Udd(_, mu, mu, lambda) * F_Ud(_, lambda, nu)) -
-              sum(lambda, Gamma_Udd(_, lambda, mu, nu) * F_Ud(_, mu, lambda)));
-  return output;
-}
-
-auto make_wave_equation(Func Df_d, Func DDf_dd, Func g_UU, Func Dg_dUU,
-                        Func Gamma_Udd, Func DV_f) -> Func {
-  RDom lambda{0, 4, "lambda"}, mu{0, 4, "mu"}, rho{0, 4, "rho"};
-  Func output;
-  output(_) =
-      sum(rho,
-          sum(mu, Dg_dUU(_, rho, rho, mu) * Df_d(_, mu) +
-                      g_UU(_, rho, mu) * DDf_dd(_, rho, mu) +
-                      sum(lambda, Gamma_Udd(_, rho, rho, lambda) *
-                                      g_UU(_, lambda, mu) * Df_d(_, mu)))) -
-      DV_f(_);
-  return output;
-}
-
-template <class... Batch>
-auto make_V(Func z, Func Q, Expr L, Batch... i) -> Func {
-  Func output;
-  FROM_EXPRESSIONS_V(output);
-  return output;
-}
-
-template <class... Batch>
-auto make_DV_Phi(Func z, Func Q, Expr L, Batch... i) -> Func {
-  Func output;
-  FROM_EXPRESSIONS_DV_Phi(output);
-  return output;
-}
-
-template <class... Batch>
-auto make_DV_Chi(Func z, Func Q, Expr L, Batch... i) -> Func {
-  Func output;
-  FROM_EXPRESSIONS_DV_Chi(output);
-  return output;
-}
-
-template <class... Batch>
-auto make_DPhi_d(Func z, Func Q, Func DQ, Batch... i) -> Func {
-  Var mu{"mu"};
-  Func output{"DPhi_d"};
-  output(i..., mu) = cast<double>(0);
-  FROM_EXPRESSIONS_DPhi_d(output);
-  return output;
-}
-
-template <class... Batch>
-auto make_DDPhi_dd(Func z, Func Q, Func DQ, Func DDQ, Batch... i) -> Func {
-  Var mu{"mu"}, nu{"nu"};
-  Func output{"DDPhi_dd"};
-  output(i..., mu, nu) = cast<double>(0);
-  FROM_EXPRESSIONS_DDPhi_dd(output);
-  return output;
-}
-
-template <class... Batch>
-auto make_DChi_d(Func z, Func Q, Func DQ, Batch... i) -> Func {
-  Var mu{"mu"};
-  Func output{"DChi_d"};
-  output(i..., mu) = cast<double>(0);
-  FROM_EXPRESSIONS_DChi_d(output);
-  return output;
-}
-
-template <class... Batch>
-auto make_DDChi_dd(Func z, Func Q, Func DQ, Func DDQ, Batch... i) -> Func {
-  Var mu{"mu"}, nu{"nu"};
-  Func output{"DDChi_dd"};
-  output(i..., mu, nu) = cast<double>(0);
-  FROM_EXPRESSIONS_DDChi_dd(output);
-  return output;
-}
-
-auto make_G_dd(Func R_dd, Func DPhi_d, Func DChi_d, Func F_dd, Func F_Ud,
-               Func F_UU, Func g_dd, Func V, Expr L) -> Func {
-  Var mu{"mu"}, nu{"nu"};
-  RDom lambda{0, 4, "lambda"}, rho{0, 4, "rho"};
-  Func output{"G_dd"};
-  output(_, mu, nu) =
-      R_dd(_, mu, nu) + (3 / (L * L) + V(_)) * g_dd(_, mu, nu) -
-      (DPhi_d(_, mu) * DPhi_d(_, nu) + DChi_d(_, mu) * DChi_d(_, nu)) -
-      (sum(lambda, -F_dd(_, mu, lambda) * F_Ud(_, lambda, nu)) -
-       g_dd(_, mu, nu) / 4 *
-           sum(lambda, sum(rho, F_dd(_, lambda, rho) * F_UU(_, lambda, rho))));
-  return output;
-}
 
 template <class T> auto set_bounds(T &buffer) {
   // buffer.dim(0).set_bounds(0, 1);

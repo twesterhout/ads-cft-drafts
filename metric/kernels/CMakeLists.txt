@@ -33,12 +33,55 @@ add_halide_library(kernels_metric
     USE_RUNTIME halide_runtime
     TARGETS host)
 
+add_halide_library(kernels_christoffel
+    FROM einstein.generator
+    GENERATOR christoffel_generator
+    FUNCTION_NAME ads_cft_halide_compute_christoffel
+    USE_RUNTIME halide_runtime
+    TARGETS host)
+
+add_halide_library(kernels_maxwell
+    FROM einstein.generator
+    GENERATOR maxwell_generator
+    FUNCTION_NAME ads_cft_halide_compute_maxwell
+    USE_RUNTIME halide_runtime
+    TARGETS host)
+
+add_halide_library(kernels_equations
+    FROM einstein.generator
+    GENERATOR equations_generator
+    FUNCTION_NAME ads_cft_halide_evaluate_equations
+    USE_RUNTIME halide_runtime
+    TARGETS host)
+
+add_halide_library(kernels_horizon
+    FROM einstein.generator
+    GENERATOR horizon_boundary_generator
+    FUNCTION_NAME ads_cft_halide_horizon_boundary_conditions
+    USE_RUNTIME halide_runtime
+    TARGETS host)
+
+# add_halide_library(kernels_foo
+#     FROM einstein.generator
+#     GENERATOR foo_generator
+#     FUNCTION_NAME ads_cft_halide_foo
+#     USE_RUNTIME halide_runtime
+#     TARGETS host)
+
 # Generate a combined library with both the kernel and runtime.
 # If shared library is used, we can load it into ghci.
 add_library(ads_cft_kernels kernels_metric${object_suffix}
+                            kernels_maxwell${object_suffix}
+                            kernels_christoffel${object_suffix}
+                            kernels_equations${object_suffix}
+                            kernels_horizon${object_suffix}
                             runtime${object_suffix})
 set_target_properties(ads_cft_kernels PROPERTIES LINKER_LANGUAGE CXX)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_metric.h DESTINATION include)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_maxwell.h DESTINATION include)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_christoffel.h DESTINATION include)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_equations.h DESTINATION include)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_horizon.h DESTINATION include)
 install(TARGETS ads_cft_kernels DESTINATION lib)
 install(TARGETS einstein.generator DESTINATION bin)

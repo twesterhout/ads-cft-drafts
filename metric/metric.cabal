@@ -44,6 +44,7 @@ common common-options
   default-language:    Haskell2010
   default-extensions:  TypeApplications
                        BangPatterns
+                       OverloadedStrings
 
 library
   import:              common-options
@@ -51,6 +52,9 @@ library
   exposed-modules:     Metric
   build-depends:       arrayfire >= 0.6.0.1
                      , halide-haskell >= 0.0.1
+                     , hdf5-hs
+                     , resourcet
+                     , primitive
   extra-libraries:     ads_cft_kernels
 
 executable metric
