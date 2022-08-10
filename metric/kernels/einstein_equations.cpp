@@ -282,6 +282,152 @@ public:
 
 HALIDE_REGISTER_GENERATOR(christoffel_generator, christoffel_generator)
 
+auto make_Xi_U(bool auto_schedule, Func g_UU, Func Gamma_Udd,
+               Func Gamma_Udd_ref) -> Func {
+  Var mu{"mu"};
+  RDom lambda{0, 4, "lambda"};
+  RDom nu{0, 4, "nu"};
+  Func Xi_U{"Xi_U"};
+  auto expr = g_UU(_, nu, lambda) *
+              (Gamma_Udd(_, mu, nu, lambda) - Gamma_Udd_ref(_, mu, nu, lambda));
+  Xi_U(_, mu) = sum(nu, sum(lambda, expr));
+  if (!auto_schedule) {
+    Xi_U.compute_root();
+  }
+  return Xi_U;
+}
+
+auto make_Xi_d(bool auto_schedule, Func g_dd, Func Xi_U) -> Func {
+  Var mu{"mu"};
+  RDom nu{0, 4, "nu"};
+  Func output;
+  output(_, mu) = sum(g_dd(_, mu, nu) * Xi_U(_, nu));
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+auto make_DXi_dU(bool auto_schedule, Func g_UU, Func Dg_dUU, Func Gamma_Udd,
+                 Func DGamma_dUdd, Func Gamma_Udd_ref, Func DGamma_dUdd_ref)
+    -> Func {
+  Var mu{"mu"}, rho{"rho"};
+  RDom nu{0, 4, "nu"};
+  RDom lambda{0, 4, "lambda"};
+  Func output;
+  auto expr = g_UU(_, nu, lambda) * (DGamma_dUdd(_, rho, mu, nu, lambda) -
+                                     DGamma_dUdd_ref(_, rho, mu, nu, lambda)) +
+              Dg_dUU(_, rho, nu, lambda) * (Gamma_Udd(_, mu, nu, lambda) -
+                                            Gamma_Udd_ref(_, mu, nu, lambda));
+  output(_, rho, mu) = sum(nu, sum(lambda, expr));
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+auto make_DXi_dd(bool auto_schedule, Func g_dd, Func Dg_ddd, Func Xi_U,
+                 Func DXi_dU) -> Func {
+  Var lambda{"lambda"}, mu{"mu"};
+  RDom nu{0, 4, "nu"};
+  Func output;
+  output(_, lambda, mu) = sum(Dg_ddd(_, lambda, mu, nu) * Xi_U(_, nu) +
+                              g_dd(_, mu, nu) * DXi_dU(_, lambda, nu));
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+auto covariant_derivative(bool auto_schedule, Func v_d, Func Dv_dd,
+                          Func Gamma_Udd) -> Func {
+  Var mu{"mu"}, nu{"nu"};
+  RDom lambda{0, 4, "lambda"};
+  Func output;
+  output(_, mu, nu) =
+      Dv_dd(_, mu, nu) - sum(Gamma_Udd(_, lambda, nu, mu) * v_d(_, lambda));
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+auto make_DivXi_dd(bool auto_schedule, Func Xi_d, Func DXi_dd, Func Gamma_Udd)
+    -> Func {
+  Var mu{"mu"}, nu{"nu"};
+  Func output;
+  auto CovDXi_dd = covariant_derivative(auto_schedule, Xi_d, DXi_dd, Gamma_Udd);
+  output(_, mu, nu) = 0.5f * (CovDXi_dd(_, mu, nu) + CovDXi_dd(_, nu, mu));
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+template <class... Batch>
+auto make_Gamma_Udd_ref(bool auto_schedule, Func z, Func Q, Func DQ, Expr L,
+                        Expr mu, Batch... i) -> Func {
+  Var _rho{"rho"}, _mu{"mu"}, _nu{"nu"};
+  Func output{"Gamma_Udd_ref"};
+  output(i..., _rho, _mu, _nu) = cast<double>(0);
+  FROM_EXPRESSIONS_Gamma_Udd_ref(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+template <class... Batch>
+auto make_DGamma_dUdd_ref(bool auto_schedule, Func z, Func Q, Func DQ, Func DDQ,
+                          Expr L, Expr mu, Batch... i) -> Func {
+  Var _lambda{"lambda"}, _rho{"rho"}, _mu{"mu"}, _nu{"nu"};
+  Func output{"DGamma_dUdd_ref"};
+  output(i..., _lambda, _rho, _mu, _nu) = cast<double>(0);
+  FROM_EXPRESSIONS_DGamma_dUdd_ref(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+class deturck_generator : public Halide::Generator<deturck_generator> {
+public:
+  Input<double> _length{"length"};
+  Input<double> _chemical_potential{"chemical_potential"};
+  Input<Buffer<double>> _x{"x", 1};
+  Input<Buffer<double>> _y{"y", 1};
+  Input<Buffer<double>> _z{"z", 1};
+  Input<Buffer<double>> _Q{"Q", 2};
+  Input<Buffer<double>> _DQ{"DQ", 3};
+  Input<Buffer<double>> _DDQ{"DDQ", 4};
+  Input<Buffer<double>> _g_dd{"g_dd", 3};
+  Input<Buffer<double>> _g_UU{"g_UU", 3};
+  Input<Buffer<double>> _Dg_ddd{"Dg_ddd", 4};
+  Input<Buffer<double>> _Dg_dUU{"Dg_dUU", 4};
+  Input<Buffer<double>> _Gamma_Udd{"Gamma_Udd", 4};
+  Input<Buffer<double>> _DGamma_dUdd{"DGamma_dUdd", 5};
+
+  Output<Buffer<double>> _out_divXi_dd{"divXi_dd", 3};
+
+  void generate() {
+    Var i{"i"};
+
+    auto Gamma_Udd_ref = make_Gamma_Udd_ref(auto_schedule, _z, _Q, _DQ, _length,
+                                            _chemical_potential, i);
+    auto DGamma_dUdd_ref = make_DGamma_dUdd_ref(
+        auto_schedule, _z, _Q, _DQ, _DDQ, _length, _chemical_potential, i);
+    auto Xi_U = make_Xi_U(auto_schedule, _g_UU, _Gamma_Udd, Gamma_Udd_ref);
+    auto Xi_d = make_Xi_d(auto_schedule, _g_dd, Xi_U);
+    auto DXi_dU = make_DXi_dU(auto_schedule, _g_UU, _Dg_dUU, _Gamma_Udd,
+                              _DGamma_dUdd, Gamma_Udd_ref, DGamma_dUdd_ref);
+    auto DXi_dd = make_DXi_dd(auto_schedule, _g_dd, _Dg_ddd, Xi_U, DXi_dU);
+
+    _out_divXi_dd = make_DivXi_dd(auto_schedule, Xi_d, DXi_dd, _Gamma_Udd);
+  }
+};
+
+HALIDE_REGISTER_GENERATOR(deturck_generator, deturck_generator)
+
 auto make_R_Uddd(bool auto_schedule, Func Gamma_Udd, Func DGamma_dUdd) -> Func {
   Var mu{"mu"}, nu{"nu"}, rho{"rho"}, sigma{"sigma"};
   RDom lambda{0, 4, "lambda"};
@@ -443,6 +589,7 @@ public:
   Input<Buffer<double>> _F_Ud{"F_Ud", 3};
   Input<Buffer<double>> _F_UU{"F_UU", 3};
   Input<Buffer<double>> _divF_d{"divF_d", 2};
+  Input<Buffer<double>> _divXi_dd{"divXi_dd", 3};
 
   Output<Buffer<double>> _out_equations{"equations", 2};
 
@@ -462,11 +609,11 @@ public:
                           _F_UU, _g_dd, V, _length);
 
     _out_equations(i, j) = cast<double>(0);
-    _out_equations(i, 0) = G_dd(i, 0, 0);
-    _out_equations(i, 1) = G_dd(i, 1, 1);
-    _out_equations(i, 2) = G_dd(i, 2, 2);
-    _out_equations(i, 3) = G_dd(i, 3, 3);
-    _out_equations(i, 4) = G_dd(i, 1, 3);
+    _out_equations(i, 0) = G_dd(i, 0, 0) - _divXi_dd(i, 0, 0);
+    _out_equations(i, 1) = G_dd(i, 1, 1) - _divXi_dd(i, 1, 1);
+    _out_equations(i, 2) = G_dd(i, 2, 2) - _divXi_dd(i, 2, 2);
+    _out_equations(i, 3) = G_dd(i, 3, 3) - _divXi_dd(i, 3, 3);
+    _out_equations(i, 4) = G_dd(i, 1, 3) - _divXi_dd(i, 1, 3);
     _out_equations(i, 5) = _divF_d(i, 0);
     _out_equations(i, 6) =
         make_wave_equation(DPhi_d, DDPhi_dd, _g_UU, _Dg_dUU, _Gamma_Udd,
@@ -531,26 +678,6 @@ HALIDE_REGISTER_GENERATOR(foo_generator, foo_generator)
 
 #if 0
 
-template <class... Batch>
-auto make_Gamma_Udd_ref(Func z, Func Q, Func DQ, Expr L, Expr mu, Batch... i)
-    -> Func {
-  Var _rho{"rho"}, _mu{"mu"}, _nu{"nu"};
-  Func output{"Gamma_Udd_ref"};
-  output(i..., _rho, _mu, _nu) = cast<double>(0);
-  FROM_EXPRESSIONS_Gamma_Udd_ref(output);
-  return output;
-}
-
-template <class... Batch>
-auto make_DGamma_dUdd_ref(Func z, Func Q, Func DQ, Func DDQ, Expr L, Expr mu,
-                          Batch... i) -> Func {
-  Var _lambda{"lambda"}, _rho{"rho"}, _mu{"mu"}, _nu{"nu"};
-  Func output{"DGamma_dUdd_ref"};
-  output(i..., _lambda, _rho, _mu, _nu) = cast<double>(0);
-  FROM_EXPRESSIONS_DGamma_dUdd_ref(output);
-  return output;
-}
-
 auto make_Gamma_Udd(Func g_UU, Func Dg_ddd) -> Func {
   Var mu{"mu"}, nu{"nu"}, lambda{"lambda"};
   RDom rho{0, 4, "rho"};
@@ -579,64 +706,6 @@ auto make_DGamma_dUdd(Func g_UU, Func Dg_dUU, Func Dg_ddd, Func DDg_dddd)
   return DGamma_dUdd;
 }
 
-auto make_Xi_U(Func g_UU, Func Gamma_Udd, Func Gamma_Udd_ref) -> Func {
-  Var mu{"mu"};
-  RDom lambda{0, 4, "lambda"};
-  RDom nu{0, 4, "nu"};
-  Func Xi_U{"Xi_U"};
-  auto expr = g_UU(_, nu, lambda) *
-              (Gamma_Udd(_, mu, nu, lambda) - Gamma_Udd_ref(_, mu, nu, lambda));
-  Xi_U(_, mu) = sum(nu, sum(lambda, expr));
-  return Xi_U;
-}
-
-auto make_DXi_dU(Func g_UU, Func Dg_dUU, Func Gamma_Udd, Func DGamma_dUdd,
-                 Func Gamma_Udd_ref, Func DGamma_dUdd_ref) -> Func {
-  Var mu{"mu"}, rho{"rho"};
-  RDom nu{0, 4, "nu"};
-  RDom lambda{0, 4, "lambda"};
-  Func output;
-  auto expr = g_UU(_, nu, lambda) * (DGamma_dUdd(_, rho, mu, nu, lambda) -
-                                     DGamma_dUdd_ref(_, rho, mu, nu, lambda)) +
-              Dg_dUU(_, rho, nu, lambda) * (Gamma_Udd(_, mu, nu, lambda) -
-                                            Gamma_Udd_ref(_, mu, nu, lambda));
-  output(_, rho, mu) = sum(nu, sum(lambda, expr));
-  return output;
-}
-
-auto make_Xi_d(Func g_dd, Func Xi_U) -> Func {
-  Var mu{"mu"};
-  RDom nu{0, 4, "nu"};
-  Func output;
-  output(_, mu) = sum(g_dd(_, mu, nu) * Xi_U(_, nu));
-  return output;
-}
-
-auto make_DXi_dd(Func g_dd, Func Dg_ddd, Func Xi_U, Func DXi_dU) -> Func {
-  Var lambda{"lambda"}, mu{"mu"};
-  RDom nu{0, 4, "nu"};
-  Func output;
-  output(_, lambda, mu) = sum(Dg_ddd(_, lambda, mu, nu) * Xi_U(_, nu) +
-                              g_dd(_, mu, nu) * DXi_dU(_, lambda, nu));
-  return output;
-}
-
-auto covariant_derivative(Func v_d, Func Dv_dd, Func Gamma_Udd) -> Func {
-  Var mu{"mu"}, nu{"nu"};
-  RDom lambda{0, 4, "lambda"};
-  Func output;
-  output(_, mu, nu) =
-      Dv_dd(_, mu, nu) - sum(Gamma_Udd(_, lambda, nu, mu) * v_d(_, lambda));
-  return output;
-}
-
-auto make_DivXi_dd(Func Xi_d, Func DXi_dd, Func Gamma_Udd) -> Func {
-  Var mu{"mu"}, nu{"nu"};
-  Func output;
-  auto CovDXi_dd = covariant_derivative(Xi_d, DXi_dd, Gamma_Udd);
-  output(_, mu, nu) = 0.5f * (CovDXi_dd(_, mu, nu) + CovDXi_dd(_, nu, mu));
-  return output;
-}
 
 
 template <class T> auto set_bounds(T &buffer) {

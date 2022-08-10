@@ -27,7 +27,7 @@ import Control.Monad.Primitive (touch)
 import Control.Monad.Trans.Resource (MonadResource, register, release)
 import Data.HDF5 (ArrayView' (..))
 import qualified Data.HDF5 as H5
-import Foreign.C.Types (CInt (..))
+import Foreign.C.Types (CBool (..), CInt (..))
 import Foreign.ForeignPtr (newForeignPtr_, withForeignPtr)
 import Foreign.Ptr (Ptr)
 import qualified GHC.ForeignPtr as GHC
@@ -178,6 +178,61 @@ computeMaxwell grid fields fieldsDerivatives metric metricDerivatives christoffe
     pure maxwell
 
 {- ORMOLU_DISABLE -}
+foreign import ccall unsafe "kernels_metric.h ads_cft_halide_compute_deturck"
+  c_compute_deturck
+    :: Double -> Double -> -- L, μ
+    Ptr HalideBuffer -> Ptr HalideBuffer -> Ptr HalideBuffer -> -- x, y, z
+    Ptr HalideBuffer -> Ptr HalideBuffer -> Ptr HalideBuffer -> -- Q, ∂Q, ∂∂Q
+    Ptr HalideBuffer -> Ptr HalideBuffer -> Ptr HalideBuffer -> Ptr HalideBuffer -> -- g₁₂, g¹², ∂₁g₁₂, ∂₁g¹²
+    Ptr HalideBuffer -> Ptr HalideBuffer -> -- Γ¹₂₃, ∂₁Γ²₃₄
+    Ptr HalideBuffer -> -- ∇ξ₁₂
+    IO CInt
+{- ORMOLU_ENABLE -}
+
+computeDeTurck ::
+  Double ->
+  Double ->
+  SpaceGrid Double ->
+  Fields Double ->
+  FieldsDerivatives Double ->
+  Metric Double ->
+  MetricDerivatives Double ->
+  Christoffel Double ->
+  DeTurck Double
+computeDeTurck l μ grid fields fieldsDerivatives metric metricDerivatives christoffel =
+  unsafePerformIO $ do
+    let deturck =
+          DeTurck
+            (AF.constant [fieldsNumPoints fields, 4, 4] 0)
+    code <-
+      withSpaceGrid grid $ \c_x c_y c_z ->
+        withFields fields $ \c_q ->
+          withFieldsDerivatives fieldsDerivatives $ \c_dq c_ddq ->
+            withMetric metric $ \c_g_dd c_g_UU ->
+              withMetricDerivatives metricDerivatives $ \c_dg_ddd c_dg_dUU c_ddg_dddd ->
+                withChristoffel christoffel $ \c_Γ_Udd c_dΓ_dUdd ->
+                  withDeTurck deturck $ \c_divξ_dd ->
+                    c_compute_deturck
+                      l
+                      μ
+                      c_x
+                      c_y
+                      c_z
+                      c_q
+                      c_dq
+                      c_ddq
+                      c_g_dd
+                      c_g_UU
+                      c_dg_ddd
+                      c_dg_dUU
+                      c_Γ_Udd
+                      c_dΓ_dUdd
+                      c_divξ_dd
+    unless (code == 0) $
+      error $ "Halide failed with error code: " <> show code
+    pure deturck
+
+{- ORMOLU_DISABLE -}
 foreign import ccall unsafe "kernels_metric.h ads_cft_halide_evaluate_equations"
   c_evaluate_equations
     :: Double -> -- length
@@ -187,6 +242,7 @@ foreign import ccall unsafe "kernels_metric.h ads_cft_halide_evaluate_equations"
     Ptr HalideBuffer -> Ptr HalideBuffer -> -- Γ¹₂₃, ∂₁Γ²₃₄
     Ptr HalideBuffer -> Ptr HalideBuffer -> Ptr HalideBuffer -> -- F₁₂, F¹₂, F¹²
     Ptr HalideBuffer -> -- ∇F₁
+    Ptr HalideBuffer -> -- ∇ξ₁₂
     Ptr HalideBuffer -> -- equations
     IO CInt
 {- ORMOLU_ENABLE -}
@@ -200,8 +256,9 @@ evaluateEquations ::
   MetricDerivatives Double ->
   Christoffel Double ->
   Maxwell Double ->
+  DeTurck Double ->
   Equations Double
-evaluateEquations l grid fields fieldsDerivatives metric metricDerivatives christoffel maxwell =
+evaluateEquations l grid fields fieldsDerivatives metric metricDerivatives christoffel maxwell deturck =
   unsafePerformIO $ do
     let equations =
           Equations
@@ -214,25 +271,27 @@ evaluateEquations l grid fields fieldsDerivatives metric metricDerivatives chris
               withMetricDerivatives metricDerivatives $ \c_dg_ddd c_dg_dUU c_ddg_dddd ->
                 withChristoffel christoffel $ \c_Γ_Udd c_dΓ_dUdd ->
                   withMaxwell maxwell $ \c_f_dd c_f_Ud c_f_UU c_divf_d ->
-                    withEquations equations $ \c_eq ->
-                      c_evaluate_equations
-                        l
-                        c_x
-                        c_y
-                        c_z
-                        c_q
-                        c_dq
-                        c_ddq
-                        c_g_dd
-                        c_g_UU
-                        c_dg_dUU
-                        c_Γ_Udd
-                        c_dΓ_dUdd
-                        c_f_dd
-                        c_f_Ud
-                        c_f_UU
-                        c_divf_d
-                        c_eq
+                    withDeTurck deturck $ \c_divξ_dd ->
+                      withEquations equations $ \c_eq ->
+                        c_evaluate_equations
+                          l
+                          c_x
+                          c_y
+                          c_z
+                          c_q
+                          c_dq
+                          c_ddq
+                          c_g_dd
+                          c_g_UU
+                          c_dg_dUU
+                          c_Γ_Udd
+                          c_dΓ_dUdd
+                          c_f_dd
+                          c_f_Ud
+                          c_f_UU
+                          c_divf_d
+                          c_divξ_dd
+                          c_eq
     unless (code == 0) $
       error $ "Halide failed with error code: " <> show code
     pure equations
@@ -318,6 +377,10 @@ newtype Equations a = Equations {unEquations :: Array a}
   deriving stock (Show, Generic)
   deriving anyclass (NFData)
 
+newtype DeTurck a = DeTurck {unDeTurck :: Array a}
+  deriving stock (Show, Generic)
+  deriving anyclass (NFData)
+
 data FieldsDerivatives a = FieldsDerivatives
   { fieldsDerivative :: !(Array a),
     fieldsSecondDerivative :: !(Array a)
@@ -370,6 +433,55 @@ data Christoffel a = Christoffel
   }
   deriving stock (Show, Generic)
   deriving anyclass (NFData)
+
+mkSpaceGrid :: AFType a => Array a -> Array a -> Array a -> SpaceGrid a
+mkSpaceGrid gridX gridY gridZ = SpaceGrid x y z
+  where
+    (numX, _, _, _) = AF.getDims gridX
+    (numY, _, _, _) = AF.getDims gridY
+    (numZ, _, _, _) = AF.getDims gridZ
+    !x = AF.flat $ AF.tile gridX [1, numY, numZ]
+    !y = AF.flat $ AF.tile (AF.moddims gridY [1, numY]) [numX, 1, numZ]
+    !z = AF.flat $ AF.tile (AF.moddims gridZ [1, 1, numZ]) [numX, numY, 1]
+
+data Selector a = Selector
+  { selectorMask :: !(Array CBool),
+    selectorIndices :: !(Array Int)
+  }
+  deriving stock (Show, Generic)
+  deriving anyclass (NFData)
+
+bulkSelector :: (AFType a, Num a) => SpaceGrid a -> Selector a
+bulkSelector (SpaceGrid _ _ z) = Selector isBulk bulkIndices
+  where
+    isBulk = AF.not $ AF.or (AF.eq z (scalar 0)) (AF.eq z (scalar 1))
+    bulkIndices = AF.where' $ AF.cast isBulk
+
+conformalBoundarySelector :: (AFType a, Num a) => SpaceGrid a -> Selector a
+conformalBoundarySelector (SpaceGrid _ _ z) = Selector isBoundary boundaryIndices
+  where
+    isBoundary = AF.eq z (scalar 0)
+    boundaryIndices = AF.where' $ AF.cast isBoundary
+
+horizonBoundarySelector :: (AFType a, Num a) => SpaceGrid a -> Selector a
+horizonBoundarySelector (SpaceGrid _ _ z) = Selector isBoundary boundaryIndices
+  where
+    isBoundary = AF.eq z (scalar 1)
+    boundaryIndices = AF.where' $ AF.cast isBoundary
+
+class IsSelectable f where
+  select :: AFType a => Selector a -> f a -> f a
+
+instance IsSelectable SpaceGrid where
+  select (Selector _ indices) (SpaceGrid x y z) =
+    SpaceGrid (AF.lookup x indices 0) (AF.lookup y indices 0) (AF.lookup z indices 0)
+
+instance IsSelectable Fields where
+  select (Selector _ indices) (Fields qs) = Fields (AF.lookup qs indices 0)
+
+instance IsSelectable FieldsDerivatives where
+  select (Selector _ indices) (FieldsDerivatives dqs ddqs) =
+    FieldsDerivatives (AF.lookup dqs indices 0) (AF.lookup ddqs indices 0)
 
 withMaxwell ::
   (AFType a, IsHalideType a) =>
@@ -466,6 +578,13 @@ withEquations ::
   IO b
 withEquations (Equations eq) action = withHalideBuffer eq action
 
+withDeTurck ::
+  (AFType a, IsHalideType a) =>
+  DeTurck a ->
+  (Ptr HalideBuffer -> IO b) ->
+  IO b
+withDeTurck (DeTurck divξ_dd) action = withHalideBuffer divξ_dd action
+
 withMetric ::
   (AFType a, IsHalideType a) =>
   Metric a ->
@@ -556,10 +675,12 @@ importFields filename = H5.withFile filename H5.ReadOnly $ \file -> do
   xGrid <- fromArrayView =<< H5.readDataset =<< H5.open file "x"
   yGrid <- fromArrayView =<< H5.readDataset =<< H5.open file "y"
   zGrid <- fromArrayView =<< H5.readDataset =<< H5.open file "z"
+  let grid = mkSpaceGrid xGrid yGrid zGrid
   qs <- fromArrayView =<< H5.readDataset =<< H5.open file "Qs"
   dqs <- fromArrayView =<< H5.readDataset =<< H5.open file "DQs"
   ddqs <- fromArrayView =<< H5.readDataset =<< H5.open file "DDQs"
-  pure (SpaceGrid xGrid yGrid zGrid, Fields qs, FieldsDerivatives dqs ddqs)
+  let bulk = bulkSelector grid
+  pure (select bulk grid, select bulk (Fields qs), select bulk (FieldsDerivatives dqs ddqs))
 
 evalEquationsFromInput :: IO (Equations Double)
 evalEquationsFromInput = do
@@ -567,7 +688,8 @@ evalEquationsFromInput = do
   let (!metric, !dmetric) = computeMetric 1.0 2.3 grid fields dfields
       !christoffel = computeChristoffel metric dmetric
       !maxwell = computeMaxwell grid fields dfields metric dmetric christoffel
-      !eq = evaluateEquations 1.0 grid fields dfields metric dmetric christoffel maxwell
+      !deturck = computeDeTurck 1.0 2.3 grid fields dfields metric dmetric christoffel
+      !eq = evaluateEquations 1.0 grid fields dfields metric dmetric christoffel maxwell deturck
   pure eq
 
 importExpectedOutputs filename = H5.withFile filename H5.ReadOnly $ \file -> do
