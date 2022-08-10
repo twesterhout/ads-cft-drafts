@@ -21,7 +21,7 @@ module Metric
   )
 where
 
-import ArrayFire (AFType, Array, scalar)
+import ArrayFire (AFType, Array, Seq (..), scalar)
 import qualified ArrayFire as AF
 import Control.Monad.Primitive (touch)
 import Control.Monad.Trans.Resource (MonadResource, register, release)
@@ -33,6 +33,7 @@ import Foreign.Ptr (Ptr)
 import qualified GHC.ForeignPtr as GHC
 import Language.Halide
 import System.IO.Unsafe (unsafePerformIO)
+import Prelude hiding (Seq)
 
 someFunc :: IO ()
 someFunc = do
@@ -52,7 +53,7 @@ foreign import ccall unsafe "kernels_metric.h ads_cft_halide_compute_metric"
 computeMetric ::
   Double ->
   Double ->
-  SpaceGrid Double ->
+  FlatSpaceGrid Double ->
   Fields Double ->
   FieldsDerivatives Double ->
   (Metric Double, MetricDerivatives Double)
@@ -66,7 +67,7 @@ computeMetric l μ grid fields fieldsDerivatives =
             (AF.constant [n, 4, 4, 4] 0)
             (AF.constant [n, 4 * 4 * 4 * 4] 0)
     code <-
-      withSpaceGrid grid $ \c_x c_y c_z ->
+      withFlatSpaceGrid grid $ \c_x c_y c_z ->
         withFields fields $ \c_q ->
           withFieldsDerivatives fieldsDerivatives $ \c_dq c_ddq ->
             withMetric metric $ \c_g_dd c_g_UU ->
@@ -134,7 +135,7 @@ foreign import ccall unsafe "kernels_metric.h ads_cft_halide_compute_maxwell"
 {- ORMOLU_ENABLE -}
 
 computeMaxwell ::
-  SpaceGrid Double ->
+  FlatSpaceGrid Double ->
   Fields Double ->
   FieldsDerivatives Double ->
   Metric Double ->
@@ -151,7 +152,7 @@ computeMaxwell grid fields fieldsDerivatives metric metricDerivatives christoffe
             (AF.constant [n, 4, 4] 0)
             (AF.constant [n, 4] 0)
     code <-
-      withSpaceGrid grid $ \c_x c_y c_z ->
+      withFlatSpaceGrid grid $ \c_x c_y c_z ->
         withFields fields $ \c_q ->
           withFieldsDerivatives fieldsDerivatives $ \c_dq c_ddq ->
             withMetric metric $ \c_g_dd c_g_UU ->
@@ -192,7 +193,7 @@ foreign import ccall unsafe "kernels_metric.h ads_cft_halide_compute_deturck"
 computeDeTurck ::
   Double ->
   Double ->
-  SpaceGrid Double ->
+  FlatSpaceGrid Double ->
   Fields Double ->
   FieldsDerivatives Double ->
   Metric Double ->
@@ -205,7 +206,7 @@ computeDeTurck l μ grid fields fieldsDerivatives metric metricDerivatives chris
           DeTurck
             (AF.constant [fieldsNumPoints fields, 4, 4] 0)
     code <-
-      withSpaceGrid grid $ \c_x c_y c_z ->
+      withFlatSpaceGrid grid $ \c_x c_y c_z ->
         withFields fields $ \c_q ->
           withFieldsDerivatives fieldsDerivatives $ \c_dq c_ddq ->
             withMetric metric $ \c_g_dd c_g_UU ->
@@ -249,7 +250,7 @@ foreign import ccall unsafe "kernels_metric.h ads_cft_halide_evaluate_equations"
 
 evaluateEquations ::
   Double ->
-  SpaceGrid Double ->
+  FlatSpaceGrid Double ->
   Fields Double ->
   FieldsDerivatives Double ->
   Metric Double ->
@@ -264,7 +265,7 @@ evaluateEquations l grid fields fieldsDerivatives metric metricDerivatives chris
           Equations
             (AF.constant [fieldsNumPoints fields, fieldsNumParams fields] 0)
     code <-
-      withSpaceGrid grid $ \c_x c_y c_z ->
+      withFlatSpaceGrid grid $ \c_x c_y c_z ->
         withFields fields $ \c_q ->
           withFieldsDerivatives fieldsDerivatives $ \c_dq c_ddq ->
             withMetric metric $ \c_g_dd c_g_UU ->
@@ -309,31 +310,17 @@ foreign import ccall unsafe "kernels_metric.h ads_cft_halide_horizon_boundary_co
 horizonBoundaryConditions ::
   Double ->
   Double ->
-  SpaceGrid Double ->
+  FlatSpaceGrid Double ->
   Fields Double ->
   FieldsDerivatives Double ->
   Array Double
 horizonBoundaryConditions l μ grid fields fieldsDerivatives =
   unsafePerformIO $ do
-    let z = gridZ grid
-        isBoundary = AF.eq z (scalar 1)
-        boundaryIndices :: Array Int
-        boundaryIndices = AF.where' $ AF.cast isBoundary
-        grid' =
-          SpaceGrid
-            (AF.lookup (gridX grid) boundaryIndices 0)
-            (AF.lookup (gridY grid) boundaryIndices 0)
-            (AF.lookup (gridZ grid) boundaryIndices 0)
-        fields' = Fields $ AF.lookup (unFields fields) boundaryIndices 0
-        fieldsDerivatives' =
-          FieldsDerivatives
-            (AF.lookup (fieldsDerivative fieldsDerivatives) boundaryIndices 0)
-            (AF.lookup (fieldsSecondDerivative fieldsDerivatives) boundaryIndices 0)
-        horizon = AF.constant [fieldsNumPoints fields', fieldsNumParams fields'] 0
+    let horizon = AF.constant [fieldsNumPoints fields, fieldsNumParams fields] 0
     code <-
-      withSpaceGrid grid' $ \c_x c_y c_z ->
-        withFields fields' $ \c_q ->
-          withFieldsDerivatives fieldsDerivatives' $ \c_dq c_ddq ->
+      withFlatSpaceGrid grid $ \c_x c_y c_z ->
+        withFields fields $ \c_q ->
+          withFieldsDerivatives fieldsDerivatives $ \c_dq c_ddq ->
             withHalideBuffer horizon $ \c_horizon ->
               c_horizon_boundary_conditions
                 l
@@ -366,8 +353,16 @@ data SpaceGrid a = SpaceGrid
   deriving stock (Show, Generic)
   deriving anyclass (NFData)
 
-gridNumPoints :: AFType a => SpaceGrid a -> Int
-gridNumPoints = AF.getElements . gridX
+data FlatSpaceGrid a = FlatSpaceGrid
+  { flatGridX :: !(Array a),
+    flatGridY :: !(Array a),
+    flatGridZ :: !(Array a)
+  }
+  deriving stock (Show, Generic)
+  deriving anyclass (NFData)
+
+gridNumPoints :: AFType a => FlatSpaceGrid a -> Int
+gridNumPoints (FlatSpaceGrid x _ _) = AF.getElements x
 
 newtype Fields a = Fields {unFields :: Array a}
   deriving stock (Show, Generic)
@@ -434,8 +429,8 @@ data Christoffel a = Christoffel
   deriving stock (Show, Generic)
   deriving anyclass (NFData)
 
-mkSpaceGrid :: AFType a => Array a -> Array a -> Array a -> SpaceGrid a
-mkSpaceGrid gridX gridY gridZ = SpaceGrid x y z
+flattenGrid :: AFType a => SpaceGrid a -> FlatSpaceGrid a
+flattenGrid (SpaceGrid gridX gridY gridZ) = FlatSpaceGrid x y z
   where
     (numX, _, _, _) = AF.getDims gridX
     (numY, _, _, _) = AF.getDims gridY
@@ -444,44 +439,77 @@ mkSpaceGrid gridX gridY gridZ = SpaceGrid x y z
     !y = AF.flat $ AF.tile (AF.moddims gridY [1, numY]) [numX, 1, numZ]
     !z = AF.flat $ AF.tile (AF.moddims gridZ [1, 1, numZ]) [numX, numY, 1]
 
-data Selector a = Selector
-  { selectorMask :: !(Array CBool),
-    selectorIndices :: !(Array Int)
+instance NFData Seq where
+  rnf (Seq b e s) = b `deepseq` e `deepseq` (rnf s)
+
+data Selector = Selector
+  { selectorIndex :: !Seq,
+    selectorShape :: !(Int, Int, Int)
   }
   deriving stock (Show, Generic)
   deriving anyclass (NFData)
 
-bulkSelector :: (AFType a, Num a) => SpaceGrid a -> Selector a
-bulkSelector (SpaceGrid _ _ z) = Selector isBulk bulkIndices
+runSelector :: AFType a => Selector -> Array a -> Array a
+runSelector (Selector !i (n₀, n₁, n₂)) arr
+  | n₀ * n₁ * n₂ == d₀ = reshapeBack . index . reshape $ arr
+  | otherwise =
+    error $
+      "runSelector failed: array has shape " <> show shape <> ", but the grid has shape " <> show (n₀, n₁, n₂)
   where
-    isBulk = AF.not $ AF.or (AF.eq z (scalar 0)) (AF.eq z (scalar 1))
-    bulkIndices = AF.where' $ AF.cast isBulk
+    shape@(d₀, d₁, d₂, d₃) = AF.getDims arr
+    reshape = flip AF.moddims [n₀, n₁, n₂, d₁ * d₂ * d₃]
+    index = flip AF.index [Seq 0 (-1) 1, Seq 0 (-1) 1, i, Seq 0 (-1) 1]
+    reshapeBack t = AF.moddims t [n₀ * n₁ * k, d₁, d₂, d₃]
+      where
+        (_, _, k, _) = AF.getDims t
 
-conformalBoundarySelector :: (AFType a, Num a) => SpaceGrid a -> Selector a
-conformalBoundarySelector (SpaceGrid _ _ z) = Selector isBoundary boundaryIndices
-  where
-    isBoundary = AF.eq z (scalar 0)
-    boundaryIndices = AF.where' $ AF.cast isBoundary
+bulkSelector :: (AFType a, Num a, Eq a) => SpaceGrid a -> Selector
+bulkSelector (SpaceGrid gridX gridY gridZ)
+  -- Check that we have a valid z grid
+  | AF.index gridZ [Seq 0 0 1] == AF.scalar 1
+      && AF.index gridZ [Seq (-1) (-1) 1] == AF.scalar 0 =
+    Selector (Seq 1 (-2) 1) (AF.getElements gridX, AF.getElements gridY, AF.getElements gridZ)
+  | otherwise = error "bulkSelector: invalid z grid"
 
-horizonBoundarySelector :: (AFType a, Num a) => SpaceGrid a -> Selector a
-horizonBoundarySelector (SpaceGrid _ _ z) = Selector isBoundary boundaryIndices
-  where
-    isBoundary = AF.eq z (scalar 1)
-    boundaryIndices = AF.where' $ AF.cast isBoundary
+conformalSelector :: (AFType a, Num a, Eq a) => SpaceGrid a -> Selector
+conformalSelector (SpaceGrid gridX gridY gridZ)
+  -- Check that we have a valid z grid
+  | AF.index gridZ [Seq 0 0 1] == AF.scalar 1
+      && AF.index gridZ [Seq (-1) (-1) 1] == AF.scalar 0 =
+    Selector (Seq (-1) (-1) 1) (AF.getElements gridX, AF.getElements gridY, AF.getElements gridZ)
+  | otherwise = error "conformalSelector: invalid z grid"
 
-class IsSelectable f where
-  select :: AFType a => Selector a -> f a -> f a
+horizonSelector :: (AFType a, Num a, Eq a) => SpaceGrid a -> Selector
+horizonSelector (SpaceGrid gridX gridY gridZ)
+  -- Check that we have a valid z grid
+  | AF.index gridZ [Seq 0 0 1] == AF.scalar 1
+      && AF.index gridZ [Seq (-1) (-1) 1] == AF.scalar 0 =
+    Selector (Seq 0 0 1) (AF.getElements gridX, AF.getElements gridY, AF.getElements gridZ)
+  | otherwise = error "horizonSelector: invalid z grid"
 
-instance IsSelectable SpaceGrid where
-  select (Selector _ indices) (SpaceGrid x y z) =
-    SpaceGrid (AF.lookup x indices 0) (AF.lookup y indices 0) (AF.lookup z indices 0)
+-- conformalBoundarySelector :: (AFType a, Num a) => SpaceGrid a -> Selector a
+-- conformalBoundarySelector (SpaceGrid _ _ z) = Selector isBoundary boundaryIndices
+--   where
+--     isBoundary = AF.eq z (scalar 0)
+--     boundaryIndices = AF.where' $ AF.cast isBoundary
+--
+-- horizonBoundarySelector :: (AFType a, Num a) => SpaceGrid a -> Selector a
+-- horizonBoundarySelector (SpaceGrid _ _ z) = Selector isBoundary boundaryIndices
+--   where
+--     isBoundary = AF.eq z (scalar 1)
+--     boundaryIndices = AF.where' $ AF.cast isBoundary
 
-instance IsSelectable Fields where
-  select (Selector _ indices) (Fields qs) = Fields (AF.lookup qs indices 0)
+class IsSelectable a where
+  select :: Selector -> a -> a
 
-instance IsSelectable FieldsDerivatives where
-  select (Selector _ indices) (FieldsDerivatives dqs ddqs) =
-    FieldsDerivatives (AF.lookup dqs indices 0) (AF.lookup ddqs indices 0)
+instance AFType a => IsSelectable (FlatSpaceGrid a) where
+  select s (FlatSpaceGrid x y z) = FlatSpaceGrid (runSelector s x) (runSelector s y) (runSelector s z)
+
+instance AFType a => IsSelectable (Fields a) where
+  select s (Fields qs) = Fields (runSelector s qs)
+
+instance AFType a => IsSelectable (FieldsDerivatives a) where
+  select s (FieldsDerivatives dqs ddqs) = FieldsDerivatives (runSelector s dqs) (runSelector s ddqs)
 
 withMaxwell ::
   (AFType a, IsHalideType a) =>
@@ -543,16 +571,27 @@ instance (AFType a, IsHalideType a) => IsHalideBuffer (Array a) where
       currentShape@(d₀, d₁, d₂, d₃) = AF.getDims arr
       shape = take (AF.getNumDims arr) [d₀, d₁, d₂, d₃]
 
-withSpaceGrid ::
+withFlatSpaceGrid ::
   (AFType a, IsHalideType a) =>
-  SpaceGrid a ->
+  FlatSpaceGrid a ->
   (Ptr HalideBuffer -> Ptr HalideBuffer -> Ptr HalideBuffer -> IO b) ->
   IO b
-withSpaceGrid (SpaceGrid x y z) action =
+withFlatSpaceGrid (FlatSpaceGrid x y z) action =
   withHalideBuffer x $ \c_x ->
     withHalideBuffer y $ \c_y ->
       withHalideBuffer z $ \c_z ->
         action c_x c_y c_z
+
+-- withSpaceGrid ::
+--   (AFType a, IsHalideType a) =>
+--   SpaceGrid a ->
+--   (Ptr HalideBuffer -> Ptr HalideBuffer -> Ptr HalideBuffer -> IO b) ->
+--   IO b
+-- withSpaceGrid (SpaceGrid x y z) action =
+--   withHalideBuffer x $ \c_x ->
+--     withHalideBuffer y $ \c_y ->
+--       withHalideBuffer z $ \c_z ->
+--         action c_x c_y c_z
 
 withFields ::
   (AFType a, IsHalideType a) =>
@@ -675,31 +714,58 @@ importFields filename = H5.withFile filename H5.ReadOnly $ \file -> do
   xGrid <- fromArrayView =<< H5.readDataset =<< H5.open file "x"
   yGrid <- fromArrayView =<< H5.readDataset =<< H5.open file "y"
   zGrid <- fromArrayView =<< H5.readDataset =<< H5.open file "z"
-  let grid = mkSpaceGrid xGrid yGrid zGrid
+  let grid = SpaceGrid xGrid yGrid zGrid
   qs <- fromArrayView =<< H5.readDataset =<< H5.open file "Qs"
   dqs <- fromArrayView =<< H5.readDataset =<< H5.open file "DQs"
   ddqs <- fromArrayView =<< H5.readDataset =<< H5.open file "DDQs"
-  let bulk = bulkSelector grid
-  pure (select bulk grid, select bulk (Fields qs), select bulk (FieldsDerivatives dqs ddqs))
+  pure (grid, Fields qs, FieldsDerivatives dqs ddqs)
+
+bulkEquations ::
+  Double ->
+  Double ->
+  SpaceGrid Double ->
+  Fields Double ->
+  FieldsDerivatives Double ->
+  Equations Double
+bulkEquations l μ fullGrid fullFields fullDFields = eq
+  where
+    bulk = bulkSelector fullGrid
+    grid = select bulk (flattenGrid fullGrid)
+    fields = select bulk fullFields
+    dfields = select bulk fullDFields
+    (metric, dmetric) = computeMetric l μ grid fields dfields
+    christoffel = computeChristoffel metric dmetric
+    maxwell = computeMaxwell grid fields dfields metric dmetric christoffel
+    deturck = computeDeTurck l μ grid fields dfields metric dmetric christoffel
+    !eq = evaluateEquations l grid fields dfields metric dmetric christoffel maxwell deturck
+
+horizonEquations ::
+  Double ->
+  Double ->
+  SpaceGrid Double ->
+  Fields Double ->
+  FieldsDerivatives Double ->
+  Array Double
+horizonEquations l μ fullGrid fullFields fullDFields = eq
+  where
+    horizon = horizonSelector fullGrid
+    grid = select horizon (flattenGrid fullGrid)
+    fields = select horizon fullFields
+    dfields = select horizon fullDFields
+    !eq = horizonBoundaryConditions l μ grid fields dfields
 
 evalEquationsFromInput :: IO (Equations Double)
 evalEquationsFromInput = do
   (grid, fields, dfields) <- importFields "../test_data.h5"
-  let (!metric, !dmetric) = computeMetric 1.0 2.3 grid fields dfields
-      !christoffel = computeChristoffel metric dmetric
-      !maxwell = computeMaxwell grid fields dfields metric dmetric christoffel
-      !deturck = computeDeTurck 1.0 2.3 grid fields dfields metric dmetric christoffel
-      !eq = evaluateEquations 1.0 grid fields dfields metric dmetric christoffel maxwell deturck
-  pure eq
+  let !horizon = horizonEquations 1.0 2.3 grid fields dfields
+  print horizon
+  pure $ bulkEquations 1.0 2.3 grid fields dfields
 
 importExpectedOutputs filename = H5.withFile filename H5.ReadOnly $ \file -> do
-  (g_dd :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "g_dd"
-  (g_UU :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "g_UU"
-  (dg_ddd :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "Dg_ddd"
-  (dg_dUU :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "Dg_dUU"
-  (divf_d :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "divF_d"
-  (eq :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "equations"
-  pure (g_dd, g_UU, dg_ddd, dg_dUU, divf_d, eq)
+  (g_dd :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "bulk/g_dd"
+  (divf_d :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "bulk/divF_d"
+  (eq :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "bulk/equations"
+  pure (g_dd, divf_d, eq)
 
 gridPointsForPeriodic :: Double -> Int -> Array Double
 gridPointsForPeriodic period n
