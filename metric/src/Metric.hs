@@ -492,7 +492,14 @@ data SystemParameters a = SystemParameters
   deriving anyclass (NFData)
 
 askarsParameters :: SystemParameters Double
-askarsParameters = SystemParameters {pL = 1, pμ = 2.3, pV0 = 5, pk0 = 2.1, pθ = 0.785}
+askarsParameters =
+  SystemParameters
+    { pL = 1,
+      pμ = 2.3,
+      pV0 = 5 * sqrt 2,
+      pk0 = 2.1,
+      pθ = pi / 4
+    }
 
 flattenGrid :: AFType a => SpaceGrid a -> FlatSpaceGrid a
 flattenGrid (SpaceGrid (Axis gridX _) (Axis gridY _) (Axis gridZ _)) = FlatSpaceGrid x y z
@@ -789,7 +796,22 @@ importFields filename = H5.withFile filename H5.ReadOnly $ \file -> do
   ddqs <- fromArrayView =<< H5.readDataset =<< H5.open file "DDQs"
   pure (grid, Fields qs, FieldsDerivatives dqs ddqs)
 
-importAskarsFields :: Text -> IO (SpaceGrid Double, Fields Double, FieldsDerivatives Double)
+evalEquationsFromAskarsInputs :: Text -> IO (Array Double)
+evalEquationsFromAskarsInputs filename = H5.withFile filename H5.ReadOnly $ \file -> do
+  let params = askarsParameters
+      x = mkPeriodicAxis (2 * pi / pk0 params) 6
+      y = mkPeriodicAxis undefined 1
+      z = mkBoundedAxis (0, 1) 6
+      grid = SpaceGrid x y z
+  qs <- fmap Fields $ fromArrayView =<< H5.readDataset =<< H5.open file "Qs"
+  let dqs = computeDerivatives grid qs
+      horizon = horizonEquations params grid qs dqs
+      bulk = bulkEquations params grid qs dqs
+      conformal = conformalEquations params grid qs dqs
+      !eq = stackAlongZ grid (horizon :| [bulk, conformal])
+  pure eq
+
+importAskarsFields :: Text -> IO (SpaceGrid Double, Fields Double, FieldsDerivatives Double, Array Double)
 importAskarsFields filename = H5.withFile filename H5.ReadOnly $ \file -> do
   let params = askarsParameters
       x = mkPeriodicAxis (2 * pi / pk0 params) 6
@@ -799,33 +821,27 @@ importAskarsFields filename = H5.withFile filename H5.ReadOnly $ \file -> do
   qs <- fromArrayView =<< H5.readDataset =<< H5.open file "Qs"
   dqs <- fromArrayView =<< H5.readDataset =<< H5.open file "DQs"
   ddqs <- fromArrayView =<< H5.readDataset =<< H5.open file "DDQs"
-  pure (grid, Fields qs, FieldsDerivatives dqs ddqs)
+  eq <- fromArrayView =<< H5.readDataset =<< H5.open file "equations"
+  pure (grid, Fields qs, FieldsDerivatives dqs ddqs, eq)
 
 computeDerivatives :: (AFType a, Num a) => SpaceGrid a -> Fields a -> FieldsDerivatives a
 computeDerivatives grid@(SpaceGrid (Axis gridX dX) (Axis _ dY) (Axis _ dZ)) (Fields qs) =
-  FieldsDerivatives dqs dqs
+  FieldsDerivatives dqs ddqs
   where
-    -- ddqs
-
     (d₀, d₁, d₂) = gridShape grid
     n = d₀ * d₁ * d₂
     diff f = foldl' (AF.join 1) d₀f [d₁f, d₂f, d₃f]
       where
         (_, _, _, m) = AF.getDims f
         d₀f = AF.constant [n, 1, m, 1] 0
-        d₁f = unsafePerformIO $ do
-          let r = AF.moddims (differentiateX dX f) [n, 1, m, 1]
-          print $ gridX
-          print $ dX
-          -- (AF.moddims r [n, m])
-          pure $ r
+        d₁f = AF.moddims (differentiateX dX f) [n, 1, m, 1]
         d₂f = AF.moddims (differentiateY dY f) [n, 1, m, 1]
         d₃f = AF.moddims (differentiateZ dZ f) [n, 1, m, 1]
     !dqs = diff qs'
       where
         (_, m, _, _) = AF.getDims qs
         qs' = AF.moddims qs [d₀, d₁, d₂, m]
-    ddqs = AF.moddims (diff dqs') [n, 4, 4, m]
+    !ddqs = AF.moddims (diff dqs') [n, 4, 4, m]
       where
         (_, _, m, _) = AF.getDims dqs
         dqs' = AF.moddims dqs [d₀, d₁, d₂, 4 * m]

@@ -560,8 +560,8 @@ auto make_G_dd(bool auto_schedule, Func R_dd, Func DPhi_d, Func DChi_d,
   RDom lambda{0, 4, "lambda"}, rho{0, 4, "rho"};
   Func output{"G_dd"};
   output(_, mu, nu) =
-      R_dd(_, mu, nu) + (3 / (L * L) + V(_)) * g_dd(_, mu, nu) -
-      (DPhi_d(_, mu) * DPhi_d(_, nu) + DChi_d(_, mu) * DChi_d(_, nu)) -
+      R_dd(_, mu, nu) + (3 / (L * L) - V(_)) * g_dd(_, mu, nu) -
+      2 * (DPhi_d(_, mu) * DPhi_d(_, nu) + DChi_d(_, mu) * DChi_d(_, nu)) -
       (sum(lambda, -F_dd(_, mu, lambda) * F_Ud(_, lambda, nu)) -
        g_dd(_, mu, nu) / 4 *
            sum(lambda, sum(rho, F_dd(_, lambda, rho) * F_UU(_, lambda, rho))));
@@ -663,6 +663,49 @@ public:
 HALIDE_REGISTER_GENERATOR(horizon_boundary_generator,
                           horizon_boundary_generator)
 
+template <class... Batch>
+auto make_conformal(bool auto_schedule, Func x, Func y, Func Q, Func DQ,
+                    Func DDQ, Expr L, Expr mu, Expr V0, Expr k0, Expr theta,
+                    Batch... i) -> Func {
+  Var j{"j"};
+  Func output{"conformal"};
+  output(i..., j) = cast<double>(0);
+  FROM_EXPRESSIONS_Conformal(output);
+  if (!auto_schedule) {
+    output.compute_root();
+  }
+  return output;
+}
+
+class conformal_boundary_generator
+    : public Halide::Generator<conformal_boundary_generator> {
+public:
+  Input<double> _length{"length"};
+  Input<double> _chemical_potential{"chemical_potential"};
+  Input<double> _v0{"V0"};
+  Input<double> _k0{"k0"};
+  Input<double> _theta{"theta"};
+  Input<Buffer<double>> _x{"x", 1};
+  Input<Buffer<double>> _y{"y", 1};
+  Input<Buffer<double>> _Q{"Q", 2};
+  Input<Buffer<double>> _DQ{"DQ", 3};
+  Input<Buffer<double>> _DDQ{"DDQ", 4};
+
+  Output<Buffer<double>> _out_conformal{"conformal", 2};
+
+  void generate() {
+    Var i{"i"};
+
+    _out_conformal =
+        make_conformal(auto_schedule, _x, _y, _Q, _DQ, _DDQ, _length,
+                       _chemical_potential, _v0, _k0, _theta, i);
+  }
+};
+
+HALIDE_REGISTER_GENERATOR(conformal_boundary_generator,
+                          conformal_boundary_generator)
+
+#if 0
 class foo_generator : public Halide::Generator<foo_generator> {
 public:
   Output<Buffer<double>> _out{"out", 2};
@@ -675,6 +718,7 @@ public:
 };
 
 HALIDE_REGISTER_GENERATOR(foo_generator, foo_generator)
+#endif
 
 #if 0
 

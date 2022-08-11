@@ -68,6 +68,13 @@ add_halide_library(kernels_horizon
     USE_RUNTIME halide_runtime
     TARGETS host)
 
+add_halide_library(kernels_conformal
+    FROM einstein.generator
+    GENERATOR conformal_boundary_generator
+    FUNCTION_NAME ads_cft_halide_conformal_boundary_conditions
+    USE_RUNTIME halide_runtime
+    TARGETS host)
+
 # add_halide_library(kernels_foo
 #     FROM einstein.generator
 #     GENERATOR foo_generator
@@ -83,6 +90,7 @@ add_library(ads_cft_kernels kernels_metric${object_suffix}
                             kernels_deturck${object_suffix}
                             kernels_equations${object_suffix}
                             kernels_horizon${object_suffix}
+                            kernels_conformal${object_suffix}
                             runtime${object_suffix})
 set_target_properties(ads_cft_kernels PROPERTIES LINKER_LANGUAGE CXX)
 
@@ -92,5 +100,6 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_christoffel.h DESTINATION incl
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_deturck.h DESTINATION include)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_equations.h DESTINATION include)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_horizon.h DESTINATION include)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_conformal.h DESTINATION include)
 install(TARGETS ads_cft_kernels DESTINATION lib)
 install(TARGETS einstein.generator DESTINATION bin)
