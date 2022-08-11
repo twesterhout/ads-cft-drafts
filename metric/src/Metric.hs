@@ -335,23 +335,75 @@ horizonBoundaryConditions l μ grid fields fieldsDerivatives =
       error $ "Halide failed with error code: " <> show code
     pure horizon
 
---   Input<double> _length{"length"};
---   Input<double> _chemical_potential{"chemical_potential"};
---   Input<Buffer<double>> _x{"x", 1};
---   Input<Buffer<double>> _y{"y", 1};
---   Input<Buffer<double>> _Q{"Q", 2};
---   Input<Buffer<double>> _DQ{"DQ", 3};
---   Input<Buffer<double>> _DDQ{"DDQ", 4};
---
---   Output<Buffer<double>> _out_horizon{"horizon", 2};
+{- ORMOLU_DISABLE -}
+foreign import ccall unsafe "kernels_metric.h ads_cft_halide_conformal_boundary_conditions"
+  c_conformal_boundary_conditions
+    :: Double -> Double -> Double -> Double -> Double -> -- L, μ, V0, k0, θ
+    Ptr HalideBuffer -> Ptr HalideBuffer -> -- x, y
+    Ptr HalideBuffer -> Ptr HalideBuffer -> Ptr HalideBuffer -> -- Q, ∂Q, ∂∂Q
+    Ptr HalideBuffer -> -- conformal
+    IO CInt
+{- ORMOLU_ENABLE -}
+
+conformalBoundaryConditions ::
+  Double ->
+  Double ->
+  Double ->
+  Double ->
+  Double ->
+  FlatSpaceGrid Double ->
+  Fields Double ->
+  FieldsDerivatives Double ->
+  Array Double
+conformalBoundaryConditions l μ v0 k0 θ grid fields fieldsDerivatives =
+  unsafePerformIO $ do
+    let conformal = AF.constant [fieldsNumPoints fields, fieldsNumParams fields] 0
+    code <-
+      withFlatSpaceGrid grid $ \c_x c_y c_z ->
+        withFields fields $ \c_q ->
+          withFieldsDerivatives fieldsDerivatives $ \c_dq c_ddq ->
+            withHalideBuffer conformal $ \c_conformal ->
+              c_conformal_boundary_conditions
+                l
+                μ
+                v0
+                k0
+                θ
+                c_x
+                c_y
+                c_q
+                c_dq
+                c_ddq
+                c_conformal
+    unless (code == 0) $
+      error $ "Halide failed with error code: " <> show code
+    pure conformal
+
+data Axis a = Axis {axisGrid :: !(Array a), axisDiff :: !(Array a)}
+  deriving stock (Show, Generic)
+  deriving anyclass (NFData)
+
+mkPeriodicAxis :: (AFType a, Floating a) => a -> Int -> Axis a
+mkPeriodicAxis period numPoints =
+  Axis (gridPointsForPeriodic period numPoints) (differentiationMatrixPeriodic period numPoints)
+
+mkBoundedAxis :: (AFType a, Floating a) => (a, a) -> Int -> Axis a
+mkBoundedAxis range numPoints =
+  Axis (gridPointsForBounded range numPoints) (differentiationMatrixBounded range numPoints)
+
+axisNumPoints :: AFType a => Axis a -> Int
+axisNumPoints (Axis grid _) = AF.getElements grid
 
 data SpaceGrid a = SpaceGrid
-  { gridX :: !(Array a),
-    gridY :: !(Array a),
-    gridZ :: !(Array a)
+  { gridX :: !(Axis a),
+    gridY :: !(Axis a),
+    gridZ :: !(Axis a)
   }
   deriving stock (Show, Generic)
   deriving anyclass (NFData)
+
+gridShape :: AFType a => SpaceGrid a -> (Int, Int, Int)
+gridShape (SpaceGrid x y z) = (axisNumPoints x, axisNumPoints y, axisNumPoints z)
 
 data FlatSpaceGrid a = FlatSpaceGrid
   { flatGridX :: !(Array a),
@@ -429,8 +481,21 @@ data Christoffel a = Christoffel
   deriving stock (Show, Generic)
   deriving anyclass (NFData)
 
+data SystemParameters a = SystemParameters
+  { pL :: !a,
+    pμ :: !a,
+    pV0 :: !a,
+    pk0 :: !a,
+    pθ :: !a
+  }
+  deriving stock (Show, Generic)
+  deriving anyclass (NFData)
+
+askarsParameters :: SystemParameters Double
+askarsParameters = SystemParameters {pL = 1, pμ = 2.3, pV0 = 5, pk0 = 2.1, pθ = 0.785}
+
 flattenGrid :: AFType a => SpaceGrid a -> FlatSpaceGrid a
-flattenGrid (SpaceGrid gridX gridY gridZ) = FlatSpaceGrid x y z
+flattenGrid (SpaceGrid (Axis gridX _) (Axis gridY _) (Axis gridZ _)) = FlatSpaceGrid x y z
   where
     (numX, _, _, _) = AF.getDims gridX
     (numY, _, _, _) = AF.getDims gridY
@@ -464,7 +529,7 @@ runSelector (Selector !i (n₀, n₁, n₂)) arr
         (_, _, k, _) = AF.getDims t
 
 bulkSelector :: (AFType a, Num a, Eq a) => SpaceGrid a -> Selector
-bulkSelector (SpaceGrid gridX gridY gridZ)
+bulkSelector (SpaceGrid (Axis gridX _) (Axis gridY _) (Axis gridZ _))
   -- Check that we have a valid z grid
   | AF.index gridZ [Seq 0 0 1] == AF.scalar 1
       && AF.index gridZ [Seq (-1) (-1) 1] == AF.scalar 0 =
@@ -472,7 +537,7 @@ bulkSelector (SpaceGrid gridX gridY gridZ)
   | otherwise = error "bulkSelector: invalid z grid"
 
 conformalSelector :: (AFType a, Num a, Eq a) => SpaceGrid a -> Selector
-conformalSelector (SpaceGrid gridX gridY gridZ)
+conformalSelector (SpaceGrid (Axis gridX _) (Axis gridY _) (Axis gridZ _))
   -- Check that we have a valid z grid
   | AF.index gridZ [Seq 0 0 1] == AF.scalar 1
       && AF.index gridZ [Seq (-1) (-1) 1] == AF.scalar 0 =
@@ -480,7 +545,7 @@ conformalSelector (SpaceGrid gridX gridY gridZ)
   | otherwise = error "conformalSelector: invalid z grid"
 
 horizonSelector :: (AFType a, Num a, Eq a) => SpaceGrid a -> Selector
-horizonSelector (SpaceGrid gridX gridY gridZ)
+horizonSelector (SpaceGrid (Axis gridX _) (Axis gridY _) (Axis gridZ _))
   -- Check that we have a valid z grid
   | AF.index gridZ [Seq 0 0 1] == AF.scalar 1
       && AF.index gridZ [Seq (-1) (-1) 1] == AF.scalar 0 =
@@ -711,23 +776,67 @@ instance NFData (Array a) where
 
 importFields :: Text -> IO (SpaceGrid Double, Fields Double, FieldsDerivatives Double)
 importFields filename = H5.withFile filename H5.ReadOnly $ \file -> do
-  xGrid <- fromArrayView =<< H5.readDataset =<< H5.open file "x"
-  yGrid <- fromArrayView =<< H5.readDataset =<< H5.open file "y"
-  zGrid <- fromArrayView =<< H5.readDataset =<< H5.open file "z"
-  let grid = SpaceGrid xGrid yGrid zGrid
+  -- xGrid <- fromArrayView =<< H5.readDataset =<< H5.open file "x"
+  -- yGrid <- fromArrayView =<< H5.readDataset =<< H5.open file "y"
+  -- zGrid <- fromArrayView =<< H5.readDataset =<< H5.open file "z"
+  let params = askarsParameters
+      x = mkPeriodicAxis (2 * pi / pk0 params) 6
+      y = mkPeriodicAxis (0 / 0) 1
+      z = mkBoundedAxis (0, 1) 6
+      grid = SpaceGrid x y z
   qs <- fromArrayView =<< H5.readDataset =<< H5.open file "Qs"
   dqs <- fromArrayView =<< H5.readDataset =<< H5.open file "DQs"
   ddqs <- fromArrayView =<< H5.readDataset =<< H5.open file "DDQs"
   pure (grid, Fields qs, FieldsDerivatives dqs ddqs)
 
+importAskarsFields :: Text -> IO (SpaceGrid Double, Fields Double, FieldsDerivatives Double)
+importAskarsFields filename = H5.withFile filename H5.ReadOnly $ \file -> do
+  let params = askarsParameters
+      x = mkPeriodicAxis (2 * pi / pk0 params) 6
+      y = mkPeriodicAxis undefined 1
+      z = mkBoundedAxis (0, 1) 6
+      grid = SpaceGrid x y z
+  qs <- fromArrayView =<< H5.readDataset =<< H5.open file "Qs"
+  dqs <- fromArrayView =<< H5.readDataset =<< H5.open file "DQs"
+  ddqs <- fromArrayView =<< H5.readDataset =<< H5.open file "DDQs"
+  pure (grid, Fields qs, FieldsDerivatives dqs ddqs)
+
+computeDerivatives :: (AFType a, Num a) => SpaceGrid a -> Fields a -> FieldsDerivatives a
+computeDerivatives grid@(SpaceGrid (Axis gridX dX) (Axis _ dY) (Axis _ dZ)) (Fields qs) =
+  FieldsDerivatives dqs dqs
+  where
+    -- ddqs
+
+    (d₀, d₁, d₂) = gridShape grid
+    n = d₀ * d₁ * d₂
+    diff f = foldl' (AF.join 1) d₀f [d₁f, d₂f, d₃f]
+      where
+        (_, _, _, m) = AF.getDims f
+        d₀f = AF.constant [n, 1, m, 1] 0
+        d₁f = unsafePerformIO $ do
+          let r = AF.moddims (differentiateX dX f) [n, 1, m, 1]
+          print $ gridX
+          print $ dX
+          -- (AF.moddims r [n, m])
+          pure $ r
+        d₂f = AF.moddims (differentiateY dY f) [n, 1, m, 1]
+        d₃f = AF.moddims (differentiateZ dZ f) [n, 1, m, 1]
+    !dqs = diff qs'
+      where
+        (_, m, _, _) = AF.getDims qs
+        qs' = AF.moddims qs [d₀, d₁, d₂, m]
+    ddqs = AF.moddims (diff dqs') [n, 4, 4, m]
+      where
+        (_, _, m, _) = AF.getDims dqs
+        dqs' = AF.moddims dqs [d₀, d₁, d₂, 4 * m]
+
 bulkEquations ::
-  Double ->
-  Double ->
+  SystemParameters Double ->
   SpaceGrid Double ->
   Fields Double ->
   FieldsDerivatives Double ->
-  Equations Double
-bulkEquations l μ fullGrid fullFields fullDFields = eq
+  Array Double
+bulkEquations (SystemParameters l μ _ _ _) fullGrid fullFields fullDFields = unEquations eq
   where
     bulk = bulkSelector fullGrid
     grid = select bulk (flattenGrid fullGrid)
@@ -740,13 +849,12 @@ bulkEquations l μ fullGrid fullFields fullDFields = eq
     !eq = evaluateEquations l grid fields dfields metric dmetric christoffel maxwell deturck
 
 horizonEquations ::
-  Double ->
-  Double ->
+  SystemParameters Double ->
   SpaceGrid Double ->
   Fields Double ->
   FieldsDerivatives Double ->
   Array Double
-horizonEquations l μ fullGrid fullFields fullDFields = eq
+horizonEquations (SystemParameters l μ _ _ _) fullGrid fullFields fullDFields = eq
   where
     horizon = horizonSelector fullGrid
     grid = select horizon (flattenGrid fullGrid)
@@ -754,53 +862,97 @@ horizonEquations l μ fullGrid fullFields fullDFields = eq
     dfields = select horizon fullDFields
     !eq = horizonBoundaryConditions l μ grid fields dfields
 
-evalEquationsFromInput :: IO (Equations Double)
+conformalEquations ::
+  SystemParameters Double ->
+  SpaceGrid Double ->
+  Fields Double ->
+  FieldsDerivatives Double ->
+  Array Double
+conformalEquations (SystemParameters l μ v0 k0 θ) fullGrid fullFields fullDFields = eq
+  where
+    conformal = conformalSelector fullGrid
+    grid = select conformal (flattenGrid fullGrid)
+    fields = select conformal fullFields
+    dfields = select conformal fullDFields
+    !eq = conformalBoundaryConditions l μ v0 k0 θ grid fields dfields
+
+stackAlongZ :: AFType a => SpaceGrid a -> NonEmpty (Array a) -> Array a
+stackAlongZ grid (arr :| arrs) = foldl' stackTwo arr arrs
+  where
+    stackTwo !a !b
+      | (a₁, a₂, a₃) == (b₁, b₂, b₃)
+          && a₀ `mod` (n₀ * n₁) == 0
+          && b₀ `mod` (n₀ * n₁) == 0 =
+        AF.moddims (AF.join 2 a' b') [a₀ + b₀, a₁, a₂, a₃]
+      | otherwise =
+        error $
+          "could not stack arrays of shape "
+            <> show (AF.getDims a)
+            <> " and "
+            <> show (AF.getDims b)
+            <> " along z axis; grid size is "
+            <> show (n₀, n₁, n₂)
+      where
+        shapeA@(a₀, a₁, a₂, a₃) = AF.getDims a
+        shapeB@(b₀, b₁, b₂, b₃) = AF.getDims b
+        (n₀, n₁, n₂) = gridShape grid
+        a' = AF.moddims a [n₀, n₁, a₀ `div` (n₀ * n₁), a₁ * a₂ * a₃]
+        b' = AF.moddims b [n₀, n₁, b₀ `div` (n₀ * n₁), b₁ * b₂ * b₃]
+
 evalEquationsFromInput = do
   (grid, fields, dfields) <- importFields "../test_data.h5"
-  let !horizon = horizonEquations 1.0 2.3 grid fields dfields
-  print horizon
-  pure $ bulkEquations 1.0 2.3 grid fields dfields
+  let params = askarsParameters
+      !bulk = bulkEquations params grid fields dfields
+      !horizon = horizonEquations params grid fields dfields
+      !conformal = conformalEquations params grid fields dfields
+  pure $ stackAlongZ grid (fromList [horizon, bulk, conformal])
 
 importExpectedOutputs filename = H5.withFile filename H5.ReadOnly $ \file -> do
   (g_dd :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "bulk/g_dd"
   (divf_d :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "bulk/divF_d"
-  (eq :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "bulk/equations"
+  (eq :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "equations"
   pure (g_dd, divf_d, eq)
 
-gridPointsForPeriodic :: Double -> Int -> Array Double
+gridPointsForPeriodic :: (AFType a, Floating a) => a -> Int -> Array a
 gridPointsForPeriodic period n
-  | even n = AF.scalar (period / fromIntegral n) * (AF.iota @Double [n] [] + AF.scalar 1)
+  | n == 0 = AF.constant [] 0
+  | n == 1 = AF.scalar (0 / 0)
+  | even n = AF.scalar (period / fromIntegral n) * (AF.iota [n] [] + AF.scalar 1)
+  | otherwise = error $ "invalid n: " <> show n
 
-gridPointsForBounded :: Double -> Double -> Int -> Array Double
-gridPointsForBounded a b n
+gridPointsForBounded :: (AFType a, Floating a) => (a, a) -> Int -> Array a
+gridPointsForBounded (a, b) n
   | n >= 2 = AF.scalar ((b + a) / 2) + AF.scalar ((b - a) / 2) * AF.cos (scale * js)
   | otherwise = error $ "invalid n: " <> show n
   where
     scale = AF.scalar (pi / fromIntegral (n - 1))
     js = AF.iota [n] []
 
-differentiationMatrixPeriodic :: Int -> Array Double
-differentiationMatrixPeriodic n
+differentiationMatrixPeriodic :: forall a. (AFType a, Floating a) => a -> Int -> Array a
+differentiationMatrixPeriodic period n
+  | n == 0 = AF.constant [] 0
+  | n == 1 = scalar 0
   | even n =
     AF.select
       isDiag
-      (AF.scalar @Double 0)
-      ( AF.scalar 0.5 * AF.cast (AF.pow (AF.scalar (-1)) δi)
+      (scalar @a 0)
+      ( scalar (0.5 * (2 * pi) / period)
+          * AF.cast (AF.pow (AF.scalar (-1)) δi)
           / AF.tan (scale * AF.cast δi)
       )
   | otherwise = error "currently only even n is supported"
   where
-    scale = AF.scalar @Double (pi / fromIntegral n)
+    scale = scalar $ pi / fromIntegral n
     rowIndices = AF.iota @Int [n] [1, n]
     colIndices = AF.transpose rowIndices False
     δi = rowIndices - colIndices
     isDiag = AF.eq rowIndices colIndices
 
-differentiationMatrixBounded :: Double -> Double -> Int -> Array Double
-differentiationMatrixBounded l u n = AF.select isDiag diag offDiag
+differentiationMatrixBounded :: (AFType a, Floating a) => (a, a) -> Int -> Array a
+differentiationMatrixBounded (l, u) n = AF.select isDiag diag offDiag
   where
     isDiag = AF.identity [n, n]
-    xᵢ = AF.tile (gridPointsForBounded l u n) [1, n]
+    xᵢ = AF.tile (gridPointsForBounded (l, u) n) [1, n]
     xⱼ = AF.transpose xᵢ False
     δx = xᵢ - xⱼ
     diag = flip AF.sum 1 $ AF.select isDiag (scalar 0) (scalar 1 / δx)
