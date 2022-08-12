@@ -7,8 +7,8 @@ mkDerivation {
   version = "0.6.1.0";
   src = fetchgit {
     url = "https://github.com/twesterhout/arrayfire-haskell";
-    hash = "sha256-zmaC9KeWT3WL1g+/0P/wngn2y4U4Y1PXx48vv/y8veU=";
-    rev = "db21c00f72e8b6da8e886e6d5b701e2aa842de53";
+    hash = "sha256-6xbzmJ7DeO9z3B5ueB+1aX+67VjzL8OQ7KKn8ggSE2E=";
+    rev = "a95d381903ea329bdca9ba20132c2ff819bab5e2";
     fetchSubmodules = true;
   };
   isLibrary = true;

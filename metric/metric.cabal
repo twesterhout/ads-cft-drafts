@@ -50,6 +50,7 @@ library
   import:              common-options
   hs-source-dirs:      src
   exposed-modules:     Metric
+                       Metric.IDR
   build-depends:       arrayfire >= 0.6.0.1
                      , halide-haskell >= 0.0.1
                      , hdf5-hs
