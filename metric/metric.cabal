@@ -54,6 +54,7 @@ library
   build-depends:       arrayfire >= 0.6.0.1
                      , halide-haskell >= 0.0.1
                      , hdf5-hs
+                     , unliftio-core
                      , resourcet
                      , primitive
   extra-libraries:     ads_cft_kernels
