@@ -51,6 +51,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Metric
                        Metric.IDR
+                       Metric.NewtonRaphson
   build-depends:       arrayfire >= 0.6.0.1
                      , halide-haskell >= 0.0.1
                      , hdf5-hs

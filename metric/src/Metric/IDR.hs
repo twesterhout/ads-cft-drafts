@@ -13,6 +13,7 @@ module Metric.IDR
   ( IDRParams (..),
     IDRResult (..),
     defaultIDRParams,
+    epsilon,
     idrs,
     idrs',
   )
