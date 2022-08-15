@@ -38,12 +38,28 @@ testMatrix1 = (m, c, x, p)
 spec :: Spec
 spec = do
   describe "newtonRaphson" $ do
-    it "solves a non-linear system of 2 equations" $ do
+    it "solves a system of 2 non-linear equations" $ do
       let f v =
             let [a, b] = AF.toList v
              in pure $ AF.vector 2 [-a * a + a + 0.5 - b, a * a - 5 * a * b - b]
           solution = AF.vector 2 [1.233317793, 0.2122450145]
           v₀ = AF.vector 2 [1.2, 1.2]
+          ε = 1.0e-6
+          opts = RootOptions (\_ r -> r < ε) 10 Nothing
+      (RootResult r _) <- newtonRaphson opts f v₀
+      r `shouldSatisfy` (\v -> allclose v solution ε 1.0e-8)
+    it "solves a system of 3 non-linear equations" $ do
+      let f v =
+            let [x, y, z] = AF.toList v
+             in pure $
+                  AF.vector
+                    3
+                    [ 9 * x * x + 36 * y * y + 4 * z * z - 36,
+                      x * x - 2 * y * y - 20 * z,
+                      x * x - y * y + z * z
+                    ]
+          solution = AF.vector 3 [0.893628, 0.894527, -0.0400893]
+          v₀ = AF.vector 3 [1.0, 1.0, 0.0]
           ε = 1.0e-6
           opts = RootOptions (\_ r -> r < ε) 10 Nothing
       (RootResult r _) <- newtonRaphson opts f v₀
