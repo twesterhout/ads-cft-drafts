@@ -61,3 +61,8 @@ spec = do
       allclose (differentiateX dX f) dF_xExpected 1.0e-10 (1.0e-12 :: Double) `shouldBe` True
       allclose (differentiateY dY f) dF_yExpected 1.0e-10 (1.0e-12 :: Double) `shouldBe` True
       allclose (differentiateZ dZ f) dF_zExpected 1.0e-10 (1.0e-12 :: Double) `shouldBe` True
+    it "computes equations of motion" $ do
+      eqns <- evalEquationsFromInput
+      eqnsExpected <- importExpectedOutputs
+      print $ AF.abs $ eqns - eqnsExpected
+      allclose eqns eqnsExpected 1.0e-10 1.0e-12 `shouldBe` True

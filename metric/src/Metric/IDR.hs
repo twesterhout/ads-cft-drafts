@@ -131,7 +131,7 @@ idrsIter params apply state₀ =
           }
 
 mkState ::
-  (HasCallStack, AFType a, Num a, Monad m) =>
+  (HasCallStack, AFType a, Num a, MonadUnliftIO m) =>
   IDRParams a ->
   Array a ->
   (Array a -> m (Array a)) ->
@@ -151,6 +151,7 @@ mkState params p apply b x
           let k = idrParamsMaxIters params
            in if k == -1 then n else k
         tol = rNorm * idrParamsTol params
+    liftIO . putStrLn $ "Initial rNorm " <> show rNorm
     pure (IDRParams maxIters tol s, IDRState 0 rNorm ω p x r m f u g)
   | otherwise =
     error $
@@ -187,11 +188,11 @@ idrs ::
 idrs params₀ apply b x₀ = do
   let (n, _, _, _) = AF.getDims b
       s = idrParamsS params₀
-  p <- liftIO $ AF.randu [n, s]
+  p <- liftIO $ (-) <$> AF.randu [n, s] <*> pure 0.5
   idrs' params₀ p apply b x₀
 
 idrs' ::
-  (Monad m, AFType a, Real a, Fractional a) =>
+  (MonadUnliftIO m, AFType a, Real a, Fractional a) =>
   IDRParams a ->
   -- | p
   Array a ->

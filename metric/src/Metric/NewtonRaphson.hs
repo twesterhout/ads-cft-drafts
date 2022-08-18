@@ -44,22 +44,61 @@ data RootResult a = RootResult
   }
   deriving stock (Show)
 
+explicitJacobian ::
+  forall a m.
+  (AFType a, RealFloat a, MonadUnliftIO m) =>
+  (Array a -> m (Array a)) ->
+  Array a ->
+  Array a ->
+  m (Array a)
+explicitJacobian f x₀ y₀ = do
+  let jacobian v = do
+        let h :: Array a
+            h = AF.scalar $ 1.0e-8
+        -- realToFrac (sqrt (1 + norm x₀)) * 1.0e-8 / realToFrac (norm a)
+        -- print (AF.getScalar (AF.cast h :: Array Double) :: Double, norm a)
+        y <- f (x₀ + h * v)
+        -- print . AF.maxAll . AF.abs $ y - y₀
+        pure $ AF.transpose ((y - y₀) / h) False
+      n = AF.getElements x₀
+      zeros i
+        | i == 0 = AF.constant [] 0
+        | otherwise = AF.constant [i] 0
+      a i = AF.join 0 (AF.join 0 (zeros i) (AF.scalar 1)) (zeros (n - 1 - i))
+  rows <- sequence [jacobian (a i) | i <- [0 .. n - 1]]
+  -- print rows
+  case rows of
+    (r : rs) -> pure $ AF.transpose (foldl' (AF.join 0) r rs) False
+
 invertApproximateJacobian ::
+  forall a m.
   (AFType a, RealFloat a, MonadUnliftIO m) =>
   (Array a -> m (Array a)) ->
   Array a ->
   Array a ->
   m (Array a)
 invertApproximateJacobian f x₀ y₀ = do
-  let jacobian a = do
-        let h = AF.scalar $ realToFrac (sqrt (1 + norm x₀)) * sqrt epsilon / realToFrac (norm a)
-        y <- f (x₀ + h * a)
-        pure $ (y - y₀) / h
-  (IDRResult δx r i isConverged) <- idrs defaultIDRParams jacobian y₀ x₀
-  unless isConverged $
-    error $ "IDR(s) failed to converge after " <> show i <> " iterations; residual norm is " <> show r
-  -- liftIO . putStrLn $ "J⁻¹(x₀) = " <> show (AF.toList (AF.cast δx :: Array Double))
-  pure δx
+  j <- explicitJacobian f x₀ y₀
+  let r = AF.solve j y₀ AF.None
+  liftIO $ print r
+  pure r
+
+-- let jacobian a = do
+--       let h :: Array a
+--           h = AF.scalar $ realToFrac (sqrt (1 + norm x₀)) * 1.0e-8 / realToFrac (norm a)
+--       -- print (AF.getScalar (AF.cast h :: Array Double) :: Double, norm a)
+--       y <- f (x₀ + h * a)
+--       -- print . AF.maxAll . AF.abs $ y - y₀
+--       pure $ (y - y₀) / h
+--     n = AF.getElements x₀
+--     params = defaultIDRParams {idrParamsS = 128, idrParamsMaxIters = 400}
+-- guess <- liftIO $ (0.01 *) <$> AF.randu [n]
+-- (IDRResult δx r i isConverged) <- idrs params jacobian y₀ guess
+-- unless isConverged $
+--   error $ "IDR(s) failed to converge after " <> show i <> " iterations; residual norm is " <> show r
+-- -- liftIO . putStrLn $ "IDR(s) converged to " <> show r <> " in " <> show i <> " iterations"
+-- -- liftIO . putStrLn $ "J⁻¹(x₀) = " <> show (AF.toList (AF.cast δx :: Array Double))
+-- pure δx
 
 norm :: AFType a => Array a -> Double
 norm v = AF.norm v AF.NormVector2 0 0

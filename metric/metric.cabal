@@ -76,6 +76,7 @@ test-suite test
   main-is:             Spec.hs
   build-depends:       metric,
                        arrayfire,
+                       hdf5-hs,
                        directory,
                        hspec,
                        QuickCheck,

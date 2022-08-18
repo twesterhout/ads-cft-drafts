@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- |
 -- Copyright: (c) 2022 Tom Westerhout
@@ -18,6 +19,11 @@ module Metric
     differentiateX,
     differentiateY,
     differentiateZ,
+    importFields,
+    evalEquationsFromInput,
+    importExpectedOutputs,
+    reissnerNordstromFields,
+    evalEquations,
   )
 where
 
@@ -32,12 +38,32 @@ import Foreign.ForeignPtr (newForeignPtr_, withForeignPtr)
 import Foreign.Ptr (Ptr)
 import qualified GHC.ForeignPtr as GHC
 import Language.Halide
+import Metric.NewtonRaphson
 import System.IO.Unsafe (unsafePerformIO)
 import Prelude hiding (Seq)
 
 someFunc :: IO ()
 someFunc = do
   putStrLn ("someFunc" :: String)
+
+ultimateTest = do
+  let properShape v = AF.moddims v [size * size, 8]
+      flattenBack v = AF.moddims v [size * size * 8]
+      params = askarsParameters {pV0 = 0}
+      size = 10
+      x = mkPeriodicAxis (2 * pi / pk0 params) size
+      y = mkPeriodicAxis (0 / 0) 1
+      z = mkBoundedAxis (0, 1) size
+      grid = SpaceGrid x y z
+  -- (grid, qs, dqs) <- importFields "../test_data.h5"
+  noise <- AF.randu @Double [size * size, 8]
+  let q = reissnerNordstromFields params grid
+      q' = Fields $ unFields q + 0.2 * (noise - 0.5)
+  print $ evalEquations params grid (unFields q')
+  newtonRaphson
+    (RootOptions (\_ r -> r < 1.0e-5) 3 Nothing)
+    (pure . flattenBack . evalEquations params grid . properShape)
+    (flattenBack $ unFields q')
 
 {- ORMOLU_DISABLE -}
 foreign import ccall unsafe "kernels_metric.h ads_cft_halide_compute_metric"
@@ -496,9 +522,9 @@ askarsParameters =
   SystemParameters
     { pL = 1,
       pμ = 2.3,
-      pV0 = 5 * sqrt 2,
+      pV0 = 5,
       pk0 = 2.1,
-      pθ = pi / 4
+      pθ = 0.785 -- pi / 4
     }
 
 flattenGrid :: AFType a => SpaceGrid a -> FlatSpaceGrid a
@@ -739,7 +765,7 @@ withArrayViewOfShape arr shape action
     -- MonadUnliftIO instead of just MonadResource
     fp <- liftIO $ AF.withDevicePtr arr newForeignPtr_
     key <- register (touch arr)
-    r <- action $ ArrayView' fp shape (colMajorStrides shape)
+    r <- action $ ArrayView' fp (reverse shape) (rowMajorStrides (reverse shape))
     release key
     pure r
   | backend /= AF.CPU = error $ "unsupported backend: " <> show backend
@@ -777,6 +803,21 @@ fromArrayView ::
   m (Array a)
 fromArrayView arr@(ArrayView' _ shape _) =
   fromArrayViewOfShape arr shape
+
+withArrayView ::
+  (HasCallStack, MonadResource m, AFType a) =>
+  Array a ->
+  (ArrayView' a -> m b) ->
+  m b
+withArrayView arr = withArrayViewOfShape arr (take (AF.getNumDims arr) [d₀, d₁, d₂, d₃])
+  where
+    (d₀, d₁, d₂, d₃) = AF.getDims arr
+
+type instance H5.ElementOf (Array a) = a
+
+instance (AFType a, H5.KnownDatatype a) => H5.KnownDataset' (Array a) where
+  withArrayView' = withArrayView
+  fromArrayView' = fromArrayView
 
 instance NFData (Array a) where
   rnf (AF.Array (GHC.ForeignPtr !addr !contents)) = ()
@@ -915,19 +956,35 @@ stackAlongZ grid (arr :| arrs) = foldl' stackTwo arr arrs
         a' = AF.moddims a [n₀, n₁, a₀ `div` (n₀ * n₁), a₁ * a₂ * a₃]
         b' = AF.moddims b [n₀, n₁, b₀ `div` (n₀ * n₁), b₁ * b₂ * b₃]
 
+evalEquations :: SystemParameters Double -> SpaceGrid Double -> Array Double -> Array Double
+evalEquations params grid q = stackAlongZ grid (fromList [horizon, bulk, conformal])
+  where
+    fields = Fields q
+    dfields = computeDerivatives grid fields
+    !bulk = bulkEquations params grid fields dfields
+    !horizon = horizonEquations params grid fields dfields
+    !conformal = conformalEquations params grid fields dfields
+
+reissnerNordstromFields :: (AFType a, Num a) => SystemParameters a -> SpaceGrid a -> Fields a
+reissnerNordstromFields params grid = Fields q
+  where
+    μ = pμ params
+    q = AF.tile (AF.moddims (AF.vector 8 [1, 1, 1, 1, 0, μ, 0, 0]) [1, 8]) [d₀ * d₁ * d₂]
+    (d₀, d₁, d₂) = gridShape grid
+
 evalEquationsFromInput = do
   (grid, fields, dfields) <- importFields "../test_data.h5"
   let params = askarsParameters
       !bulk = bulkEquations params grid fields dfields
       !horizon = horizonEquations params grid fields dfields
       !conformal = conformalEquations params grid fields dfields
+  print conformal
   pure $ stackAlongZ grid (fromList [horizon, bulk, conformal])
 
-importExpectedOutputs filename = H5.withFile filename H5.ReadOnly $ \file -> do
-  (g_dd :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "bulk/g_dd"
-  (divf_d :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "bulk/divF_d"
+importExpectedOutputs :: IO (Array Double)
+importExpectedOutputs = H5.withFile "../test_data.h5" H5.ReadOnly $ \file -> do
   (eq :: Array Double) <- fromArrayView =<< H5.readDataset =<< H5.open file "equations"
-  pure (g_dd, divf_d, eq)
+  pure eq
 
 gridPointsForPeriodic :: (AFType a, Floating a) => a -> Int -> Array a
 gridPointsForPeriodic period n
@@ -992,11 +1049,7 @@ differentiateX d f
     df' = AF.matmul d f' AF.None AF.None
     df = AF.moddims df' [n₀, m₁, m₂, m₃]
 
-differentiateY ::
-  (HasCallStack, AFType a) =>
-  Array a ->
-  Array a ->
-  Array a
+differentiateY :: (HasCallStack, AFType a) => Array a -> Array a -> Array a
 differentiateY d f
   | n₂ == 1 && n₃ == 1 && n₁ == m₁ = df
   | otherwise = error $ "incompatible dimensions: " <> show dDims <> " and " <> show fDims
