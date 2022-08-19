@@ -70,6 +70,14 @@ explicitJacobian f x₀ y₀ = do
   case rows of
     (r : rs) -> pure $ AF.transpose (foldl' (AF.join 0) r rs) False
 
+backtrackingLineSearch ::
+  forall a m.
+  (AFType a, RealFloat a, MonadUnliftIO m) =>
+  (Array a -> m (Array a)) ->
+  Array a ->
+  m (Array a)
+backtrackingLineSearch = undefined
+
 invertApproximateJacobian ::
   forall a m.
   (AFType a, RealFloat a, MonadUnliftIO m) =>
@@ -79,20 +87,30 @@ invertApproximateJacobian ::
   m (Array a)
 invertApproximateJacobian f x₀ y₀ = do
   j <- explicitJacobian f x₀ y₀
-  let r = AF.solve j y₀ AF.None
-  liftIO $ print r
-  pure r
+  let (_, values, _) = AF.svd j
+  print $ AF.index values [AF.Seq 0 0 1] / AF.index values [AF.Seq (-1) (-1) 1]
+  let params = defaultIDRParams {idrParamsTol = 1.0e-2, idrParamsS = 32, idrParamsMaxIters = 2 * n}
+      n = AF.getElements x₀
+  -- guess <- liftIO $ fmap (0.01 *) $ AF.randu [n]
+  let guess = AF.constant [n] 0
+  (IDRResult δx r i isConverged) <- idrs params (\v -> pure $ AF.matmul j v AF.None AF.None) y₀ guess
+  unless isConverged $
+    error $ "IDR(s) failed to converge after " <> show i <> " iterations; residual norm is " <> show r
+  liftIO . putStrLn $ "IDR(s) converged to " <> show r <> " in " <> show i <> " iterations"
+  -- let δx = AF.solve j y₀ AF.None
+  pure δx
+
+-- liftIO $ print r
 
 -- let jacobian a = do
 --       let h :: Array a
 --           h = AF.scalar $ realToFrac (sqrt (1 + norm x₀)) * 1.0e-8 / realToFrac (norm a)
---       -- print (AF.getScalar (AF.cast h :: Array Double) :: Double, norm a)
 --       y <- f (x₀ + h * a)
 --       -- print . AF.maxAll . AF.abs $ y - y₀
 --       pure $ (y - y₀) / h
 --     n = AF.getElements x₀
---     params = defaultIDRParams {idrParamsS = 128, idrParamsMaxIters = 400}
--- guess <- liftIO $ (0.01 *) <$> AF.randu [n]
+--     params = defaultIDRParams {idrParamsS = 32, idrParamsMaxIters = 2 * n}
+-- guess <- liftIO $ fmap (0.01 *) $ AF.randu [n]
 -- (IDRResult δx r i isConverged) <- idrs params jacobian y₀ guess
 -- unless isConverged $
 --   error $ "IDR(s) failed to converge after " <> show i <> " iterations; residual norm is " <> show r

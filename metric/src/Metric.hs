@@ -56,12 +56,12 @@ ultimateTest = do
       z = mkBoundedAxis (0, 1) size
       grid = SpaceGrid x y z
   -- (grid, qs, dqs) <- importFields "../test_data.h5"
-  noise <- AF.randu @Double [size * size, 8]
+  noise <- AF.randu [1] -- AF.randu @Double [size * size, 8]
   let q = reissnerNordstromFields params grid
       q' = Fields $ unFields q + 0.2 * (noise - 0.5)
   print $ evalEquations params grid (unFields q')
   newtonRaphson
-    (RootOptions (\_ r -> r < 1.0e-5) 3 Nothing)
+    (RootOptions (\_ r -> r < 1.0e-5) 10 Nothing)
     (pure . flattenBack . evalEquations params grid . properShape)
     (flattenBack $ unFields q')
 

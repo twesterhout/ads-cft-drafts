@@ -52,13 +52,22 @@ library
   exposed-modules:     Metric
                        Metric.IDR
                        Metric.NewtonRaphson
+                       Metric.LineSearch
+                       Metric.Petsc
+                       Metric.Petsc.Types
+                       Metric.Petsc.Context
   build-depends:       arrayfire >= 0.6.0.1
                      , halide-haskell >= 0.0.1
+                     , inline-c >= 0.9.1
+                     , template-haskell
+                     , containers
                      , hdf5-hs
+                     , unliftio
                      , unliftio-core
                      , resourcet
                      , primitive
   extra-libraries:     ads_cft_kernels
+                     , petsc
 
 executable metric
   import:              common-options

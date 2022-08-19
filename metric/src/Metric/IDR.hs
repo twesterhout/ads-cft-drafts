@@ -188,7 +188,7 @@ idrs ::
 idrs params₀ apply b x₀ = do
   let (n, _, _, _) = AF.getDims b
       s = idrParamsS params₀
-  p <- liftIO $ (-) <$> AF.randu [n, s] <*> pure 0.5
+  p <- liftIO $ AF.randu [n, s] -- <*> pure 0.5
   idrs' params₀ p apply b x₀
 
 idrs' ::
