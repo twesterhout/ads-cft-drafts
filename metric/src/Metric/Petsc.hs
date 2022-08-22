@@ -29,9 +29,9 @@ C.context (C.baseCtx <> C.funCtx <> petscCtx)
 C.include "<petscsnes.h>"
 C.include "<petscerror.h>"
 
-petscCheck :: MonadUnliftIO m => PetscErrorCode -> m ()
-petscCheck c =
-  liftIO $ [CU.exp| void { PetscCallAbort(PETSC_COMM_WORLD, $(PetscErrorCode c)) } |]
+-- petscCheck :: MonadUnliftIO m => PetscErrorCode -> m ()
+-- petscCheck c =
+--   liftIO $ [CU.exp| void { PetscCallAbort(PETSC_COMM_WORLD, $(PetscErrorCode c)) } |]
 
 petscInitialize :: MonadUnliftIO m => m ()
 petscInitialize =
@@ -40,64 +40,80 @@ petscInitialize =
 petscFinalize :: MonadUnliftIO m => m ()
 petscFinalize = liftIO $ [CU.exp| void { PetscFinalize() } |]
 
-data PetscVec s = PetscVec {unPetscVec :: ForeignPtr ()}
+-- data PetscVec s = PetscVec {unPetscVec :: ForeignPtr ()}
+--
+-- foreign import ccall unsafe "petscvec.h &VecDestroy"
+--   c_VecDestroy :: FunPtr (Ptr () -> IO ())
+--
+-- newVector :: (HasCallStack, MonadUnliftIO m) => Int -> m (PetscVec s)
+-- newVector size
+--   | size >= 0 = liftIO $ do
+--     (RawPetscVec ptr) <-
+--       [CU.block| Vec {
+--         Vec v;
+--         PetscCallAbort(PETSC_COMM_WORLD, VecCreateSeq(PETSC_COMM_SELF, $(int n), &v));
+--         return v;
+--       } |]
+--     PetscVec <$> newForeignPtr c_VecDestroy ptr
+--   | otherwise = error $ "invalid size: " <> show size
+--   where
+--     n = fromIntegral size
 
-foreign import ccall unsafe "petscvec.h &VecDestroy"
-  c_VecDestroy :: FunPtr (Ptr () -> IO ())
+-- withRawPetscVec :: MonadUnliftIO m => PetscVec s -> (RawPetscVec -> m a) -> m a
+-- withRawPetscVec (PetscVec fp) action =
+--   withForeignPtr fp $ \vec -> action (RawPetscVec vec)
+--
+-- withPetscVec :: MonadUnliftIO m => PetscVec s -> (Ptr PetscScalar -> m a) -> m a
+-- withPetscVec v action =
+--   withRawPetscVec v $ \vec ->
+--     bracket (acquire vec) (release vec) action
+--   where
+--     acquire vec =
+--       liftIO $
+--         [CU.block| PetscScalar* {
+--           PetscScalar* a;
+--           PetscCallAbort(PETSC_COMM_WORLD, VecGetArray($(Vec vec), &a));
+--           return a;
+--         } |]
+--     release vec ptr =
+--       liftIO $
+--         [CU.block| void {
+--           PetscScalar* a = $(PetscScalar* ptr);
+--           PetscCallAbort(PETSC_COMM_WORLD, VecRestoreArray($(Vec vec), &a));
+--         } |]
 
-newVector :: (HasCallStack, MonadUnliftIO m) => Int -> m (PetscVec s)
-newVector size
-  | size >= 0 = liftIO $ do
-    (RawPetscVec ptr) <-
-      [CU.block| Vec {
-        Vec v;
-        PetscCallAbort(PETSC_COMM_WORLD, VecCreateSeq(PETSC_COMM_SELF, $(int n), &v));
-        return v;
-      } |]
-    PetscVec <$> newForeignPtr c_VecDestroy ptr
-  | otherwise = error $ "invalid size: " <> show size
-  where
-    n = fromIntegral size
+-- toPetscVector :: MonadUnliftIO m => Array PetscScalar -> m (PetscVec s)
+-- toPetscVector arr
+--   | backend == AF.CPU && d₁ == 1 && d₂ == 1 && d₃ == 1 =
+--     liftIO $
+--       AF.withDevicePtr arr $ \devicePtr ->
+--         undefined
+--   | otherwise = error $ "unsupported backend: " <> show backend
+--   where
+--     backend = AF.getBackend arr
+--     currentShape@(d₀, d₁, d₂, d₃) = AF.getDims arr
+--     shape = take (AF.getNumDims arr) [d₀, d₁, d₂, d₃]
+--
+-- fromPetscVector :: PetscVec s -> Array PetscScalar
+-- fromPetscVector v = undefined
+--
+-- data PetscMat s = PetscMat {unPetscMat :: ForeignPtr RawPetscMat}
 
-withRawPetscVec :: MonadUnliftIO m => PetscVec s -> (RawPetscVec -> m a) -> m a
-withRawPetscVec (PetscVec fp) action =
-  withForeignPtr fp $ \vec -> action (RawPetscVec vec)
+nonLinearSolve :: PetscFunction -> IO ()
+nonLinearSolve f = do
+  ec <-
+    [C.block| PetscErrorCode {
+      SNES snes;
+      PetscCall(SNESCreate(PETSC_COMM_WORLD,&snes));
 
-withPetscVec :: MonadUnliftIO m => PetscVec s -> (Ptr PetscScalar -> m a) -> m a
-withPetscVec v action =
-  withRawPetscVec v $ \vec ->
-    bracket (acquire vec) (release vec) action
-  where
-    acquire vec =
-      liftIO $
-        [CU.block| PetscScalar* {
-          PetscScalar* a;
-          PetscCallAbort(PETSC_COMM_WORLD, VecGetArray($(Vec vec), &a));
-          return a;
-        } |]
-    release vec ptr =
-      liftIO $
-        [CU.block| void {
-          PetscScalar* a = $(PetscScalar* ptr);
-          PetscCallAbort(PETSC_COMM_WORLD, VecRestoreArray($(Vec vec), &a));
-        } |]
+      PetscErrorCode (*form_function)(SNES, Vec, Vec, void*) =
+        $fun:(PetscErrorCode (*f)(SNES, Vec, Vec, void*));
+      PetscCall(SNESSetFunction(snes, NULL, form_function, NULL));
 
-toPetscVector :: MonadUnliftIO m => Array PetscScalar -> m (PetscVec s)
-toPetscVector arr
-  | backend == AF.CPU && d₁ == 1 && d₂ == 1 && d₃ == 1 =
-    liftIO $
-      AF.withDevicePtr arr $ \devicePtr ->
-        undefined
-  | otherwise = error $ "unsupported backend: " <> show backend
-  where
-    backend = AF.getBackend arr
-    currentShape@(d₀, d₁, d₂, d₃) = AF.getDims arr
-    shape = take (AF.getNumDims arr) [d₀, d₁, d₂, d₃]
-
-fromPetscVector :: PetscVec s -> Array PetscScalar
-fromPetscVector v = undefined
-
-data PetscMat s = PetscMat {unPetscMat :: ForeignPtr RawPetscMat}
+      PetscCall(SNESDestroy(&snes));
+    } |]
+  when (ec /= PetscErrorCode 0) $
+    error $ "PETSc failed with error code: " <> show ec
 
 {-
 static char help[] = "Newton methods to solve u'' + u^{2} = f in parallel.\n\

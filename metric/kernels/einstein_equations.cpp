@@ -20,6 +20,55 @@ auto operator/(Expr b, double a) -> Expr { return b / to_float_checked(a); }
 auto operator+(double a, Expr b) -> Expr { return to_float_checked(a) + b; }
 auto operator-(double a, Expr b) -> Expr { return to_float_checked(a) - b; }
 
+class finite_differences_generator
+    : public Halide::Generator<finite_differences_generator> {
+public:
+  Input<Buffer<double>> x{"x", 1};
+  Output<Buffer<double>> _out{"D", 2};
+
+  auto generate() -> void {
+    Var i{"i"}, j{"j"};
+    auto n = x.dim(0).extent();
+
+    Func bulk{"bulk"};
+    bulk(i, j) = cast<double>(0);
+
+    RDom k{1, n - 2, "k"};
+    bulk(k, scatter(k - 1, k, k + 1)) =
+        gather((x(k) - x(k + 1)) / (x(k - 1) - x(k)) / (x(k - 1) - x(k + 1)),
+               (x(k - 1) - 2 * x(k) + x(k + 1)) / (x(k - 1) - x(k)) /
+                   (x(k) - x(k + 1)),
+               (x(k) - x(k - 1)) / (x(k - 1) - x(k + 1)) / (x(k) - x(k + 1)));
+    bulk(0, scatter(0, 1, 2)) =
+        gather((2 * x(0) - x(1) - x(2)) / (x(0) - x(1)) / (x(0) - x(2)),
+               (x(0) - x(2)) / (x(1) - x(0)) / (x(1) - x(2)),
+               (x(0) - x(1)) / (x(0) - x(2)) / (x(1) - x(2)));
+    bulk(n - 1, scatter(n - 3, n - 2, n - 1)) = gather(
+        (x(n - 1) - x(n - 2)) / (x(n - 3) - x(n - 2)) / (x(n - 3) - x(n - 1)),
+        (x(n - 3) - x(n - 1)) / (x(n - 3) - x(n - 2)) / (x(n - 2) - x(n - 1)),
+        (2 * x(n - 1) - x(n - 3) - x(n - 2)) / (x(n - 3) - x(n - 1)) /
+            (x(n - 2) - x(n - 1)));
+
+    _out(i, j) = bulk(i, j);
+
+    x.dim(0).set_min(0).set_stride(1);
+    _out.dim(0).set_min(0).set_stride(1).set_extent(n);
+    _out.dim(1).set_min(0).set_stride(n).set_extent(n);
+
+    if (!auto_schedule) {
+      bulk.in(_out).compute_root();
+      bulk.compute_at(bulk.in(_out), j);
+      _out.reorder(j, i);
+    } else {
+      x.set_estimates({{0, 10}});
+      _out.set_estimates({{0, 10}, {0, 10}});
+    }
+  }
+};
+
+HALIDE_REGISTER_GENERATOR(finite_differences_generator,
+                          finite_differences_generator)
+
 template <class... Batch>
 auto make_g_dd(bool auto_schedule, Func z, Func Q, Expr L, Expr mu, Batch... i)
     -> Func {

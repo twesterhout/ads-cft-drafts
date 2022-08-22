@@ -66,6 +66,7 @@ library
                      , unliftio-core
                      , resourcet
                      , primitive
+                     , hvega
   extra-libraries:     ads_cft_kernels
                      , petsc
 

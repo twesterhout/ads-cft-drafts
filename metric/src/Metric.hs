@@ -16,6 +16,7 @@ module Metric
     gridPointsForBounded,
     differentiationMatrixPeriodic,
     differentiationMatrixBounded,
+    finiteDifferencesMatrix,
     differentiateX,
     differentiateY,
     differentiateZ,
@@ -24,6 +25,7 @@ module Metric
     importExpectedOutputs,
     reissnerNordstromFields,
     evalEquations,
+    visualization,
   )
 where
 
@@ -37,6 +39,7 @@ import Foreign.C.Types (CBool (..), CInt (..))
 import Foreign.ForeignPtr (newForeignPtr_, withForeignPtr)
 import Foreign.Ptr (Ptr)
 import qualified GHC.ForeignPtr as GHC
+import Graphics.Vega.VegaLite hiding (Axis, Fields, select)
 import Language.Halide
 import Metric.NewtonRaphson
 import System.IO.Unsafe (unsafePerformIO)
@@ -1033,6 +1036,38 @@ differentiationMatrixBounded (l, u) n = AF.select isDiag diag offDiag
     aᵢ = AF.tile a [1, n]
     aⱼ = AF.transpose aᵢ False
     offDiag = aᵢ / (aⱼ * δx)
+
+visualization :: IO ()
+visualization = do
+  let cars = dataFromUrl "https://vega.github.io/vega-datasets/data/cars.json" []
+      enc =
+        encoding
+          . position X [PName "Horsepower", PmType Quantitative]
+          . position Y [PName "Miles_per_Gallon", PmType Quantitative, PTitle "Miles per Gallon"]
+      bkg = background "rgba(0, 0, 0, 0.05)"
+  toHtmlFile "myplot.html" $
+    toVegaLite [bkg, width 1024, height 920, cars, mark Circle [MTooltip TTEncoding], enc []]
+
+{- ORMOLU_DISABLE -}
+foreign import ccall unsafe "kernels_finite_differences.h ads_cft_halide_finite_differences_matrix"
+  c_ads_cft_halide_finite_differences_matrix
+    :: Ptr HalideBuffer -> -- x grid
+    Ptr HalideBuffer -> -- Dₓ
+    IO CInt
+{- ORMOLU_ENABLE -}
+
+finiteDifferencesMatrix :: Array Double -> Array Double
+finiteDifferencesMatrix x =
+  unsafePerformIO $ do
+    let n = AF.getElements x
+        matrix = AF.constant [n, n] 0
+    code <-
+      withHalideBuffer x $ \c_x ->
+        withHalideBuffer matrix $ \c_matrix ->
+          c_ads_cft_halide_finite_differences_matrix c_x c_matrix
+    unless (code == 0) $
+      error $ "Halide failed with error code: " <> show code
+    pure matrix
 
 differentiateX ::
   (HasCallStack, AFType a) =>

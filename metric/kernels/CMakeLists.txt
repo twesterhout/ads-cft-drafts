@@ -26,6 +26,13 @@ add_library(halide_runtime runtime${object_suffix})
 set_target_properties(halide_runtime PROPERTIES LINKER_LANGUAGE CXX)
 
 # Generate the kernels for 'host' using our custom runtime
+add_halide_library(kernels_finite_differences
+    FROM einstein.generator
+    GENERATOR finite_differences_generator
+    FUNCTION_NAME ads_cft_halide_finite_differences_matrix
+    USE_RUNTIME halide_runtime
+    TARGETS host)
+
 add_halide_library(kernels_metric
     FROM einstein.generator
     GENERATOR metric_generator
@@ -84,7 +91,8 @@ add_halide_library(kernels_conformal
 
 # Generate a combined library with both the kernel and runtime.
 # If shared library is used, we can load it into ghci.
-add_library(ads_cft_kernels kernels_metric${object_suffix}
+add_library(ads_cft_kernels kernels_finite_differences${object_suffix}
+                            kernels_metric${object_suffix}
                             kernels_maxwell${object_suffix}
                             kernels_christoffel${object_suffix}
                             kernels_deturck${object_suffix}
@@ -94,6 +102,7 @@ add_library(ads_cft_kernels kernels_metric${object_suffix}
                             runtime${object_suffix})
 set_target_properties(ads_cft_kernels PROPERTIES LINKER_LANGUAGE CXX)
 
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_finite_differences.h DESTINATION include)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_metric.h DESTINATION include)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_maxwell.h DESTINATION include)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/kernels_christoffel.h DESTINATION include)

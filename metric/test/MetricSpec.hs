@@ -61,8 +61,20 @@ spec = do
       allclose (differentiateX dX f) dF_xExpected 1.0e-10 (1.0e-12 :: Double) `shouldBe` True
       allclose (differentiateY dY f) dF_yExpected 1.0e-10 (1.0e-12 :: Double) `shouldBe` True
       allclose (differentiateZ dZ f) dF_zExpected 1.0e-10 (1.0e-12 :: Double) `shouldBe` True
+    it "constructs finite differences matrices" $ do
+      let n = 100
+          xs = gridPointsForBounded (0, 2) n
+          dX = finiteDifferencesMatrix xs
+          f = xs ^^ (3 :: Int) - 4 * xs
+          dF = differentiateX dX f
+          dFExpected = 3 * xs ^^ (2 :: Int) - 4
+      -- print dX
+      -- print (AF.transpose dF False)
+      -- print (AF.transpose dFExpected False)
+      -- print . AF.maxAll . AF.abs $ (dF - dFExpected) / AF.abs dFExpected
+      allclose dF dFExpected 5.0e-2 5.0e-3 `shouldBe` True
     it "computes equations of motion" $ do
       eqns <- evalEquationsFromInput
       eqnsExpected <- importExpectedOutputs
-      print $ AF.abs $ eqns - eqnsExpected
+      -- print $ AF.abs $ eqns - eqnsExpected
       allclose eqns eqnsExpected 1.0e-10 1.0e-12 `shouldBe` True

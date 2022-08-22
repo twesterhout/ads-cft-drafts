@@ -20,8 +20,9 @@ import Metric.Petsc.Types
 petscTypesTable :: Map.Map Types.TypeSpecifier TH.TypeQ
 petscTypesTable =
   Map.fromList
-    [ (Types.TypeName "Vec", [t|RawPetscVec|]),
-      (Types.TypeName "Mat", [t|RawPetscMat|]),
+    [ (Types.TypeName "Vec", [t|Vec|]),
+      (Types.TypeName "Mat", [t|Mat|]),
+      (Types.TypeName "SNES", [t|SNES|]),
       (Types.TypeName "PetscErrorCode", [t|PetscErrorCode|]),
       (Types.TypeName "PetscScalar", [t|PetscScalar|])
     ]

@@ -15,6 +15,14 @@ newtype RawPetscVec = RawPetscVec {unRawPetscVec :: Ptr ()}
 
 newtype RawPetscMat = RawPetscMat {unRawPetscMat :: Ptr ()}
 
+newtype SNES = SNES { unSNES :: Ptr () }
+
+newtype Vec = Vec { unVec :: Ptr () }
+
+newtype Mat = Mat { unMat :: Ptr () }
+
+type PetscFunction = SNES -> Vec -> Vec -> Ptr () -> IO PetscErrorCode
+
 newtype PetscErrorCode = PetscErrorCode #{type PetscErrorCode}
   deriving (Show, Eq)
 

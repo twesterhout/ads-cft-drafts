@@ -68,7 +68,7 @@ spec = do
           x <- H5.open file "x" >>= H5.readDataset
           p <- H5.open file "p" >>= H5.readDataset
           pure (AF.transpose m False, b, x, AF.transpose p False)
-      print m
+      -- print m
       let apply v = pure $ AF.matmul m v AF.None AF.None
           solution = AF.solve m b AF.None
       r <- idrs (defaultIDRParams {idrParamsS = s, idrParamsMaxIters = 2 * n}) apply b x :: IO (IDRResult Double)
