@@ -26,6 +26,7 @@ module Metric
     reissnerNordstromFields,
     evalEquations,
     visualization,
+    ultimateTest,
   )
 where
 
@@ -42,6 +43,7 @@ import qualified GHC.ForeignPtr as GHC
 import Graphics.Vega.VegaLite hiding (Axis, Fields, select)
 import Language.Halide
 import Metric.NewtonRaphson
+import Metric.Petsc (nonLinearSolve, petscFinalize, petscInitialize, toPetscFunction)
 import System.IO.Unsafe (unsafePerformIO)
 import Prelude hiding (Seq)
 
@@ -58,15 +60,39 @@ ultimateTest = do
       y = mkPeriodicAxis (0 / 0) 1
       z = mkBoundedAxis (0, 1) size
       grid = SpaceGrid x y z
+      sparseGrid =
+        SpaceGrid
+          (Axis (axisGrid x) (finiteDifferencesMatrix (axisGrid x)))
+          y
+          (Axis (axisGrid z) (finiteDifferencesMatrix (axisGrid z)))
   -- (grid, qs, dqs) <- importFields "../test_data.h5"
-  noise <- AF.randu [1] -- AF.randu @Double [size * size, 8]
+  -- let noise = 0.5963
+  noise <- AF.randu @Double [size * size, 8]
+  -- print noise
   let q = reissnerNordstromFields params grid
-      q' = Fields $ unFields q + 0.2 * (noise - 0.5)
-  print $ evalEquations params grid (unFields q')
+      q' = Fields $ unFields q + 0.05 * (noise - 0.5)
+      f = pure . flattenBack . evalEquations params grid . properShape
+      fSparse = pure . flattenBack . evalEquations params sparseGrid . properShape
+      jacobian x₀ y₀ = do
+        -- j₁ <- explicitJacobian f x₀ y₀
+        y <- fSparse x₀ :: IO (Array Double)
+        j₂ <- explicitJacobian fSparse x₀ y
+        -- print j₁
+        -- print j₂
+        -- let j₂' = AF.createSparseArrayFromDense j₂ AF.CSR
+        -- print j₂'
+        pure j₂
+  -- print =<< f (flattenBack $ unFields q')
+  -- print =<< fSparse (flattenBack $ unFields q')
   newtonRaphson
-    (RootOptions (\_ r -> r < 1.0e-5) 10 Nothing)
-    (pure . flattenBack . evalEquations params grid . properShape)
+    (RootOptions (\_ r -> r < 1.0e-4) 20 Nothing)
+    f
+    fSparse
     (flattenBack $ unFields q')
+
+-- petscInitialize
+-- nonLinearSolve (toPetscFunction (pure . flattenBack . evalEquations params grid . properShape)) (unFields q')
+-- petscFinalize
 
 {- ORMOLU_DISABLE -}
 foreign import ccall unsafe "kernels_metric.h ads_cft_halide_compute_metric"

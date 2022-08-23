@@ -99,21 +99,100 @@ petscFinalize = liftIO $ [CU.exp| void { PetscFinalize() } |]
 --
 -- data PetscMat s = PetscMat {unPetscMat :: ForeignPtr RawPetscMat}
 
-nonLinearSolve :: PetscFunction -> IO ()
-nonLinearSolve f = do
-  ec <-
-    [C.block| PetscErrorCode {
-      SNES snes;
-      PetscCall(SNESCreate(PETSC_COMM_WORLD,&snes));
-
-      PetscErrorCode (*form_function)(SNES, Vec, Vec, void*) =
-        $fun:(PetscErrorCode (*f)(SNES, Vec, Vec, void*));
-      PetscCall(SNESSetFunction(snes, NULL, form_function, NULL));
-
-      PetscCall(SNESDestroy(&snes));
+vecGetSize :: Vec -> IO Int
+vecGetSize vec =
+  fmap fromIntegral $
+    [CU.block| PetscInt {
+      PetscInt size;
+      PetscCallAbort(PETSC_COMM_WORLD, VecGetLocalSize($(Vec vec), &size));
+      return size;
     } |]
-  when (ec /= PetscErrorCode 0) $
-    error $ "PETSc failed with error code: " <> show ec
+
+withVec :: Vec -> (Ptr PetscScalar -> IO a) -> IO a
+withVec vec f = bracket (acquire vec) (release vec) f
+  where
+    acquire v =
+      [CU.block| PetscScalar* {
+        PetscScalar* a;
+        PetscCallAbort(PETSC_COMM_WORLD, VecGetArray($(Vec v), &a));
+        return a;
+      } |]
+    release v p =
+      [CU.block| void {
+        PetscScalar* a = $(PetscScalar* p);
+        PetscCallAbort(PETSC_COMM_WORLD, VecRestoreArray($(Vec v), &a));
+      } |]
+
+toPetscFunction :: (Array PetscScalar -> IO (Array PetscScalar)) -> PetscFunction
+toPetscFunction f = \_ x y _ ->
+  withVec x $ \xPtr ->
+    withVec y $ \yPtr -> do
+      n <- vecGetSize x
+      xArr <- AF.unsafeFromHostPtrShape xPtr [n]
+      yArr <- f xArr
+      AF.unsafeCopyData yArr yPtr
+      pure (PetscErrorCode 0)
+
+nonLinearSolve :: PetscFunction -> Array PetscScalar -> IO ()
+nonLinearSolve f x = do
+  AF.withDevicePtr x $ \xPtr -> do
+    let n = fromIntegral (AF.getElements x)
+    ec <-
+      [C.block| PetscErrorCode {
+        SNES snes;
+        PetscCall(SNESCreate(PETSC_COMM_WORLD,&snes));
+
+        PetscErrorCode (*form_function)(SNES, Vec, Vec, void*) =
+          $fun:(PetscErrorCode (*f)(SNES, Vec, Vec, void*));
+        PetscCall(SNESSetFunction(snes, NULL, form_function, NULL));
+
+        Mat J;
+        // MatCreateSNESMF(snes, &J);
+        MatCreateMFFD(PETSC_COMM_WORLD, PETSC_DECIDE, PETSC_DECIDE, $(int n), $(int n), &J);
+        SNESSetJacobian(snes, J , J, SNESComputeJacobianDefault, NULL);
+
+        Vec x;
+        PetscCall(VecCreateSeq(PETSC_COMM_SELF, $(int n), &x));
+
+        PetscScalar* x_ptr;
+        PetscCall(VecGetArray(x, &x_ptr));
+        for (int i = 0; i < $(int n); ++i) {
+          x_ptr[i] = $(PetscScalar* xPtr)[i];
+        }
+        PetscCall(VecRestoreArray(x, &x_ptr));
+
+        PetscCall(SNESSolve(snes, NULL, x));
+
+        PetscInt iterations;
+        PetscCall(SNESGetIterationNumber(snes, &iterations));
+        PetscCall(PetscPrintf(PETSC_COMM_WORLD,"Number of SNES iterations = %D\n", iterations));
+
+        VecDestroy(&x);
+        MatDestroy(&J);
+        PetscCall(SNESDestroy(&snes));
+      } |]
+    when (ec /= PetscErrorCode 0) $
+      error $ "PETSc failed with error code: " <> show ec
+
+-- where
+--   monitor :: SNES -> PetscInt -> PetscReal -> Ptr () -> IO PetscErrorCode
+--   monitor snes its fnorm = do
+--     [C.block| PetscErrorCode {
+--       PetscCall(PetscPrintf(PETSC_COMM_WORLD,"iter = %D, SNES Function norm %g\n", its, (double)fnorm));
+--       return 0;
+--     } |]
+
+-- PetscErrorCode Monitor(SNES snes,PetscInt its,PetscReal fnorm,void *ctx)
+-- {
+--   MonitorCtx     *monP = (MonitorCtx*) ctx;
+--   Vec            x;
+--
+--   PetscFunctionBeginUser;
+--   PetscCall(PetscPrintf(PETSC_COMM_WORLD,"iter = %D,SNES Function norm %g\n",its,(double)fnorm));
+--   PetscCall(SNESGetSolution(snes,&x));
+--   PetscCall(VecView(x,monP->viewer));
+--   PetscFunctionReturn(0);
+-- }
 
 {-
 static char help[] = "Newton methods to solve u'' + u^{2} = f in parallel.\n\

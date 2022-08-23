@@ -16,6 +16,7 @@ module Metric.IDR
     epsilon,
     idrs,
     idrs',
+    norm,
   )
 where
 

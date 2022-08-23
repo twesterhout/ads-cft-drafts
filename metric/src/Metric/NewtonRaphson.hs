@@ -14,6 +14,7 @@ module Metric.NewtonRaphson
     RootOptions (..),
     RootResult (..),
     newtonRaphson,
+    explicitJacobian,
   )
 where
 
@@ -21,9 +22,9 @@ import ArrayFire (AFType, Array)
 import qualified ArrayFire as AF
 import Control.Monad.IO.Unlift
 import Metric.IDR
+import Metric.Jacobian
+import Metric.LineSearch
 import Prelude hiding (state)
-
-data LineSearchOptions
 
 data RootOptions = RootOptions
   { rootOptionsCriterion :: !(Double -> Double -> Bool),
@@ -82,22 +83,23 @@ invertApproximateJacobian ::
   forall a m.
   (AFType a, RealFloat a, MonadUnliftIO m) =>
   (Array a -> m (Array a)) ->
+  (Array a -> Array a -> m (Array a)) ->
   Array a ->
   Array a ->
   m (Array a)
-invertApproximateJacobian f x₀ y₀ = do
-  j <- explicitJacobian f x₀ y₀
+invertApproximateJacobian f jacobian x₀ y₀ = do
+  j <- jacobian x₀ y₀ -- explicitJacobian f x₀ y₀
   let (_, values, _) = AF.svd j
   print $ AF.index values [AF.Seq 0 0 1] / AF.index values [AF.Seq (-1) (-1) 1]
   let params = defaultIDRParams {idrParamsTol = 1.0e-2, idrParamsS = 32, idrParamsMaxIters = 2 * n}
       n = AF.getElements x₀
   -- guess <- liftIO $ fmap (0.01 *) $ AF.randu [n]
-  let guess = AF.constant [n] 0
-  (IDRResult δx r i isConverged) <- idrs params (\v -> pure $ AF.matmul j v AF.None AF.None) y₀ guess
-  unless isConverged $
-    error $ "IDR(s) failed to converge after " <> show i <> " iterations; residual norm is " <> show r
-  liftIO . putStrLn $ "IDR(s) converged to " <> show r <> " in " <> show i <> " iterations"
-  -- let δx = AF.solve j y₀ AF.None
+  -- let guess = AF.constant [n] 0
+  -- (IDRResult δx r i isConverged) <- idrs params (\v -> pure $ AF.matmul j v AF.None AF.None) y₀ guess
+  -- unless isConverged $
+  --   error $ "IDR(s) failed to converge after " <> show i <> " iterations; residual norm is " <> show r
+  -- liftIO . putStrLn $ "IDR(s) converged to " <> show r <> " in " <> show i <> " iterations"
+  let δx = AF.solve j y₀ AF.None
   pure δx
 
 -- liftIO $ print r
@@ -118,36 +120,52 @@ invertApproximateJacobian f x₀ y₀ = do
 -- -- liftIO . putStrLn $ "J⁻¹(x₀) = " <> show (AF.toList (AF.cast δx :: Array Double))
 -- pure δx
 
-norm :: AFType a => Array a -> Double
-norm v = AF.norm v AF.NormVector2 0 0
-
 newtonRaphsonStep ::
   forall m a.
   (AFType a, RealFloat a, MonadUnliftIO m) =>
   (Array a -> m (Array a)) ->
+  (Array a -> m (Array a)) ->
   RootState a ->
   m (RootState a)
-newtonRaphsonStep f (RootState x₀ y₀ _) = do
-  δx <- invertApproximateJacobian f x₀ y₀
-  let x = x₀ - δx
-  y <- f x
-  pure $ RootState x y (norm y)
+newtonRaphsonStep f f' (RootState x₀ y₀ _) = do
+  y₀' <- f' x₀
+  h <- explicitJacobian f' x₀ y₀'
+  -- j <- explicitJacobian f x₀ y₀
+  -- let params = defaultIDRParams {idrParamsTol = 1.0e-3, idrParamsS = 32, idrParamsMaxIters = 1000}
+  let δx = AF.solve h y₀' AF.None
+  -- guess <- liftIO $ fmap (0.01 *) $ AF.randu [n]
+  -- (IDRResult δx' r i isConverged) <- idrs params (approximateJacobianVectorProduct f x₀ y₀) y₀ δx
+  -- if not isConverged
+  --   then liftIO . putStrLn $ "IDR(s) failed to converge after " <> show i <> " iterations; residual norm is " <> show r
+  --   else liftIO . putStrLn $ "IDR(s) converged to " <> show r <> " in " <> show i <> " iterations"
+  -- j <- jacobian x₀ y₀ -- explicitJacobian f x₀ y₀
+  -- let g = y₀ -- AF.matmul j x₀ AF.None AF.None
+  -- - y₀
+  -- invertApproximateJacobian f jacobian x₀ y₀
+  lineSearchResult <- lineSearchForNorm defaultOptions f x₀ Nothing (-δx)
+  case lineSearchResult of
+    LineSearchConverged λ _ _ -> do
+      let x = x₀ - AF.scalar (realToFrac λ) * δx
+      y <- f x
+      pure $ RootState x y (norm y)
+    _ -> error $ "Line Search did not converge: " <> show lineSearchResult
 
 newtonRaphson ::
   forall a m.
   (AFType a, RealFloat a, MonadUnliftIO m) =>
   RootOptions ->
   (Array a -> m (Array a)) ->
+  (Array a -> m (Array a)) ->
   Array a ->
   m (RootResult a)
-newtonRaphson options f x₀ = do
+newtonRaphson options f jacobian x₀ = do
   y₀ <- f x₀
   let iₘₐₓ = rootOptionsMaxIter options
       shouldStop = rootOptionsCriterion options r₀ . rootStateResidual
       go acc !i !s
         | i >= iₘₐₓ || shouldStop s = pure (rootStateCurrent s, acc)
         | otherwise = do
-          s' <- newtonRaphsonStep f s
+          s' <- newtonRaphsonStep f jacobian s
           go (rootStateResidual s' : acc) (i + 1) s'
       r₀ = norm y₀
   (solution, history) <- go [r₀] 0 $ RootState x₀ y₀ r₀

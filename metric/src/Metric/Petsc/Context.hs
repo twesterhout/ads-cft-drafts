@@ -24,7 +24,8 @@ petscTypesTable =
       (Types.TypeName "Mat", [t|Mat|]),
       (Types.TypeName "SNES", [t|SNES|]),
       (Types.TypeName "PetscErrorCode", [t|PetscErrorCode|]),
-      (Types.TypeName "PetscScalar", [t|PetscScalar|])
+      (Types.TypeName "PetscScalar", [t|PetscScalar|]),
+      (Types.TypeName "PetscInt", [t|PetscInt|])
     ]
 
 -- | Provides type mappings for better interoperability with "Language.C.Inline".

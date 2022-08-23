@@ -53,6 +53,7 @@ library
                        Metric.IDR
                        Metric.NewtonRaphson
                        Metric.LineSearch
+                       Metric.Jacobian
                        Metric.Petsc
                        Metric.Petsc.Types
                        Metric.Petsc.Context
@@ -67,6 +68,7 @@ library
                      , resourcet
                      , primitive
                      , hvega
+                     , mtl
   extra-libraries:     ads_cft_kernels
                      , petsc
 
